@@ -112,6 +112,8 @@ export interface Payment {
   reference?: string;
   stage: "Advance" | "Design" | "Material" | "Carpentry" | "Electrical & Plumbing" | "Finishing" | "Handover";
   note?: string;
+  /** Session-only when it is a blob URL. The store drops those on persist. */
+  receiptUrl?: string;
   recordedById: string;
   status: "awaiting_ack" | "acknowledged" | "disputed";
   ackAt?: string;

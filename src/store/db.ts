@@ -36,7 +36,10 @@ export const useDb = create<DbState>()(
           ...update,
           photos: update.photos.filter((photo) => !photo.url.startsWith("blob:")),
         })),
-        payments: state.payments,
+        payments: state.payments.map((payment) => ({
+          ...payment,
+          receiptUrl: payment.receiptUrl?.startsWith("blob:") ? undefined : payment.receiptUrl,
+        })),
         changeRequests: state.changeRequests,
         teamMembers: state.teamMembers,
         notifications: state.notifications,

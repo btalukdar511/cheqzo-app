@@ -9,6 +9,7 @@ import {
   canSeeProject,
   disputePayment,
   postUpdate,
+  recordPayment,
   projectHealth,
   rejectChangeRequest,
   rejectUpdate,
@@ -18,6 +19,7 @@ import {
   withdrawChangeRequest,
   type Actor,
   type HealthResult,
+  type PaymentWrite,
   type ProjectCreateInput,
   type ProjectSummary,
 } from "@/lib/rules";
@@ -60,6 +62,18 @@ function requireUser(userId: string): User {
 
 function actor(userId: string): Actor {
   return actorFromUser(requireUser(userId));
+}
+
+function requireVisiblePayment(userId: string, paymentId: string): { payment: Payment; project: Project } {
+  const state = useDb.getState();
+  const user = requireUser(userId);
+  const payment = state.payments.find((item) => item.id === paymentId);
+  const project = payment ? state.projects.find((item) => item.id === payment.projectId) : undefined;
+  if (!payment || !project) throw new Error("Payment not found");
+  if (!canSeeProject(user, project.id, state.projects, state.teamMembers)) {
+    throw new Error("You don't have access to this project");
+  }
+  return { payment, project };
 }
 
 export const api = {
@@ -259,12 +273,36 @@ export const api = {
     return result.value.update;
   },
 
+  async recordPayment(userId: string, projectId: string, draft: PaymentWrite): Promise<Payment> {
+    await wait();
+    const state = useDb.getState();
+    const user = requireUser(userId);
+    const project = state.projects.find((item) => item.id === projectId);
+    if (!project) throw new Error("Project not found");
+    if (!canSeeProject(user, project.id, state.projects, state.teamMembers)) {
+      throw new Error("You don't have access to this project");
+    }
+    const result = recordPayment({
+      actor: actorFromUser(user),
+      projectId: project.id,
+      homeownerId: project.homeownerId,
+      ...draft,
+      paymentId: uniqueId("pay"),
+      notificationId: uniqueId("nt"),
+      auditId: uniqueId("aud"),
+    });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      payments: [result.value.payment, ...state.payments],
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.payment;
+  },
+
   async acknowledgePayment(userId: string, paymentId: string): Promise<Payment> {
     await wait();
     const state = useDb.getState();
-    const payment = state.payments.find((item) => item.id === paymentId);
-    const project = payment ? state.projects.find((item) => item.id === payment.projectId) : undefined;
-    if (!payment || !project) throw new Error("Payment not found");
+    const { payment, project } = requireVisiblePayment(userId, paymentId);
     const result = acknowledgePayment({ payment, actor: actor(userId), designerId: project.designerId });
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
@@ -277,9 +315,7 @@ export const api = {
   async disputePayment(userId: string, paymentId: string, reason: string): Promise<Payment> {
     await wait();
     const state = useDb.getState();
-    const payment = state.payments.find((item) => item.id === paymentId);
-    const project = payment ? state.projects.find((item) => item.id === payment.projectId) : undefined;
-    if (!payment || !project) throw new Error("Payment not found");
+    const { payment, project } = requireVisiblePayment(userId, paymentId);
     const result = disputePayment({ payment, actor: actor(userId), reason, designerId: project.designerId });
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
@@ -289,13 +325,18 @@ export const api = {
     return result.value.payment;
   },
 
-  async resubmitPayment(userId: string, paymentId: string): Promise<Payment> {
+  async resubmitPayment(userId: string, paymentId: string, patch: PaymentWrite): Promise<Payment> {
     await wait();
     const state = useDb.getState();
-    const payment = state.payments.find((item) => item.id === paymentId);
-    const project = payment ? state.projects.find((item) => item.id === payment.projectId) : undefined;
-    if (!payment || !project) throw new Error("Payment not found");
-    const result = resubmitPayment({ payment, actor: actor(userId), homeownerId: project.homeownerId });
+    const { payment, project } = requireVisiblePayment(userId, paymentId);
+    const result = resubmitPayment({
+      payment,
+      actor: actor(userId),
+      homeownerId: project.homeownerId,
+      patch,
+      auditId: uniqueId("aud"),
+      notificationId: uniqueId("nt"),
+    });
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       payments: state.payments.map((item) => (item.id === paymentId ? result.value.payment : item)),

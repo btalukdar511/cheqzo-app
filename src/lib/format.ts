@@ -34,6 +34,11 @@ export function formatDate(value: string | Date): string {
   return format(date, "d MMM yyyy");
 }
 
+export function formatDateTime(value: string | Date): string {
+  const date = typeof value === "string" ? parseISO(value) : value;
+  return format(date, "d MMM, HH:mm");
+}
+
 export function relativeTime(value: string | Date, now: Date = DEMO_NOW): string {
   const date = typeof value === "string" ? parseISO(value) : value;
   return formatDistance(date, now, { addSuffix: true });

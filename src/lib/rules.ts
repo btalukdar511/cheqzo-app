@@ -2,6 +2,7 @@ import { addDays, differenceInCalendarDays, format, isAfter, isValid, parseISO }
 
 import { phoneSchema, normalizePhone } from "@/lib/auth";
 import { createId, DEMO_NOW, uniqueId } from "@/lib/demo";
+import { formatINRCompact } from "@/lib/format";
 import type {
   ChangeRequest,
   Health,
@@ -524,8 +525,143 @@ export function addUpdateComment(input: {
   };
 }
 
-function auditEntry(action: PaymentAuditEntry["action"], actorId: string, at: string, note?: string): PaymentAuditEntry {
-  return { id: createId("aud"), at, actorId, action, note };
+export const PAYMENT_STAGES = [
+  "Advance",
+  "Design",
+  "Material",
+  "Carpentry",
+  "Electrical & Plumbing",
+  "Finishing",
+  "Handover",
+] as const;
+
+export const PAYMENT_METHODS = ["UPI", "Bank Transfer", "Cash", "Cheque"] as const;
+
+export const PAYMENT_STATUSES = ["awaiting_ack", "acknowledged", "disputed"] as const;
+
+export function isPaymentStage(value: string): value is Payment["stage"] {
+  return (PAYMENT_STAGES as readonly string[]).includes(value);
+}
+
+export function isPaymentMethod(value: string): value is Payment["method"] {
+  return (PAYMENT_METHODS as readonly string[]).includes(value);
+}
+
+export function isPaymentStatus(value: string): value is Payment["status"] {
+  return (PAYMENT_STATUSES as readonly string[]).includes(value);
+}
+
+export function normalizePaymentDate(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const dated = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T12:00:00` : trimmed;
+  if (!isValid(parseISO(dated))) return null;
+  return dated;
+}
+
+export interface PaymentDraftIssues {
+  amount?: string;
+  date?: string;
+  stage?: string;
+  reference?: string;
+}
+
+export interface PaymentWrite {
+  amount: number;
+  date: string;
+  method: Payment["method"];
+  reference?: string;
+  stage: Payment["stage"];
+  note?: string;
+  receiptUrl?: string;
+}
+
+export function paymentDraftIssues(input: {
+  amount: number;
+  date: string;
+  method: Payment["method"];
+  reference?: string;
+  stage: string;
+}): PaymentDraftIssues {
+  const issues: PaymentDraftIssues = {};
+  if (!Number.isInteger(input.amount) || input.amount <= 0) issues.amount = "Enter an amount";
+  if (!normalizePaymentDate(input.date)) issues.date = "Choose a date";
+  if (!isPaymentStage(input.stage)) issues.stage = "Choose a stage";
+  if (input.method !== "Cash" && !input.reference?.trim()) {
+    issues.reference = "Add a reference for this payment method";
+  }
+  return issues;
+}
+
+function firstDraftIssue(issues: PaymentDraftIssues): string | null {
+  return issues.amount ?? issues.date ?? issues.stage ?? issues.reference ?? null;
+}
+
+function paymentHref(projectId: string, paymentId: string): string {
+  return `/projects/${projectId}/financials?payment=${paymentId}`;
+}
+
+function auditEntry(
+  action: PaymentAuditEntry["action"],
+  actorId: string,
+  at: string,
+  note?: string,
+  id?: string,
+): PaymentAuditEntry {
+  return { id: id ?? createId("aud"), at, actorId, action, note };
+}
+
+export function recordPayment(input: PaymentWrite & {
+  actor: Actor;
+  projectId: string;
+  homeownerId: string;
+  now?: string;
+  paymentId?: string;
+  notificationId?: string;
+  auditId?: string;
+}): RuleResult<{ payment: Payment; notification: Notification }> {
+  const permission = can(input.actor, "record_payment");
+  if (!permission.allowed) return fail(permission.reason);
+  const problem = firstDraftIssue(paymentDraftIssues(input));
+  if (problem) return fail(problem);
+  const date = normalizePaymentDate(input.date);
+  if (!date) return fail("Choose a date");
+  const at = input.now ?? DEMO_NOW.toISOString();
+  const id = input.paymentId ?? createId("pay");
+  const reference = input.method === "Cash" ? undefined : input.reference?.trim();
+  const note = input.note?.trim() || undefined;
+  const receiptUrl = input.receiptUrl || undefined;
+  const payment: Payment = {
+    id,
+    projectId: input.projectId,
+    amount: input.amount,
+    date,
+    method: input.method,
+    reference,
+    stage: input.stage,
+    note,
+    receiptUrl,
+    recordedById: input.actor.id,
+    status: "awaiting_ack",
+    audit: [auditEntry("recorded", input.actor.id, at, note, input.auditId)],
+  };
+  return {
+    ok: true,
+    value: {
+      payment,
+      notification: {
+        id: input.notificationId ?? createId("nt"),
+        userId: input.homeownerId,
+        projectId: input.projectId,
+        type: "payment_ack",
+        title: `${formatINRCompact(input.amount)} payment awaiting acknowledgement`,
+        body: input.stage,
+        createdAt: at,
+        read: false,
+        href: paymentHref(input.projectId, id),
+      },
+    },
+  };
 }
 
 export function acknowledgePayment(input: {
@@ -557,7 +693,7 @@ export function acknowledgePayment(input: {
         body: "A payment was acknowledged",
         createdAt: at,
         read: false,
-        href: `/projects/${input.payment.projectId}/financials`,
+        href: paymentHref(input.payment.projectId, input.payment.id),
       },
     },
   };
@@ -594,7 +730,7 @@ export function disputePayment(input: {
         body: reason,
         createdAt: at,
         read: false,
-        href: `/projects/${input.payment.projectId}/financials`,
+        href: paymentHref(input.payment.projectId, input.payment.id),
       },
     },
   };
@@ -604,26 +740,51 @@ export function resubmitPayment(input: {
   payment: Payment;
   actor: Actor;
   homeownerId: string;
-  patch?: Partial<Pick<Payment, "amount" | "date" | "method" | "reference" | "stage" | "note">>;
+  patch?: Partial<PaymentWrite>;
   now?: string;
+  auditId?: string;
+  notificationId?: string;
 }): RuleResult<{ payment: Payment; notification: Notification }> {
   const permission = can(input.actor, "record_payment");
   if (!permission.allowed) return fail(permission.reason);
   if (input.payment.status !== "disputed") return fail("Only a disputed payment can be resubmitted");
+  const method = input.patch?.method ?? input.payment.method;
+  const stage = input.patch?.stage ?? input.payment.stage;
+  const amount = input.patch?.amount ?? input.payment.amount;
+  const date = input.patch?.date ?? input.payment.date;
+  const reference =
+    method === "Cash"
+      ? undefined
+      : input.patch && "reference" in input.patch
+        ? input.patch.reference
+        : input.payment.reference;
+  const problem = firstDraftIssue(paymentDraftIssues({ amount, date, method, reference, stage }));
+  if (problem) return fail(problem);
+  const normalized = normalizePaymentDate(date);
+  if (!normalized) return fail("Choose a date");
   const at = input.now ?? DEMO_NOW.toISOString();
+  const note = input.patch && "note" in input.patch ? input.patch.note?.trim() || undefined : input.payment.note;
+  const receiptUrl =
+    input.patch && "receiptUrl" in input.patch ? input.patch.receiptUrl || undefined : input.payment.receiptUrl;
   return {
     ok: true,
     value: {
       payment: {
         ...input.payment,
-        ...input.patch,
+        amount,
+        date: normalized,
+        method,
+        stage,
+        reference: method === "Cash" ? undefined : reference?.trim() || undefined,
+        note,
+        receiptUrl,
         status: "awaiting_ack",
         disputeReason: undefined,
         ackAt: undefined,
-        audit: [...input.payment.audit, auditEntry("resubmitted", input.actor.id, at)],
+        audit: [...input.payment.audit, auditEntry("resubmitted", input.actor.id, at, undefined, input.auditId)],
       },
       notification: {
-        id: createId("nt"),
+        id: input.notificationId ?? createId("nt"),
         userId: input.homeownerId,
         projectId: input.payment.projectId,
         type: "payment_ack",
@@ -631,7 +792,7 @@ export function resubmitPayment(input: {
         body: "A disputed payment was sent again for acknowledgement",
         createdAt: at,
         read: false,
-        href: `/projects/${input.payment.projectId}/financials`,
+        href: paymentHref(input.payment.projectId, input.payment.id),
       },
     },
   };

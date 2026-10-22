@@ -2,18 +2,10 @@ import { differenceInCalendarDays, endOfWeek, format, isWithinInterval, parseISO
 
 import { DEMO_NOW } from "@/lib/demo";
 import { formatINRCompact } from "@/lib/format";
-import { actorFromUser, can, projectNavBadges, type NavBadges, type ProjectSummary } from "@/lib/rules";
-import type { ChangeRequest, Payment, Project, Room, SiteUpdate, User } from "@/types";
+import { actorFromUser, can, PAYMENT_STAGES, projectNavBadges, type NavBadges, type ProjectSummary } from "@/lib/rules";
 
-export const PAYMENT_STAGES = [
-  "Advance",
-  "Design",
-  "Material",
-  "Carpentry",
-  "Electrical & Plumbing",
-  "Finishing",
-  "Handover",
-] as const;
+export { PAYMENT_STAGES };
+import type { ChangeRequest, Payment, Project, Room, SiteUpdate, User } from "@/types";
 
 export type UpdateStatusFilter = "all" | SiteUpdate["status"];
 export type UpdateSort = "newest" | "oldest";
@@ -78,6 +70,14 @@ export function isUpdateSort(value: string | null): value is UpdateSort {
 
 export function updateHref(projectId: string, updateId: string): string {
   return `/projects/${projectId}/updates?update=${updateId}`;
+}
+
+export function paymentHref(projectId: string, paymentId: string): string {
+  return `/projects/${projectId}/financials?payment=${paymentId}`;
+}
+
+export function recordPaymentHref(projectId: string): string {
+  return `/projects/${projectId}/financials?record=1`;
 }
 
 export function percentLabel(value: number): string {
@@ -175,7 +175,7 @@ export function recentActivity(input: {
     title: `${formatINRCompact(payment.amount)} · ${payment.stage}`,
     meta: PAYMENT_STATUS_LABEL[payment.status],
     at: payment.date,
-    href: `/projects/${input.projectId}/financials`,
+    href: paymentHref(input.projectId, payment.id),
   }));
   const changes: ActivityEntry[] = input.changeRequests.map((request) => ({
     id: request.id,
@@ -214,7 +214,7 @@ export function overviewActions(input: {
       items.push({
         id: payment.id,
         label: `Resolve ${formatINRCompact(payment.amount)} dispute`,
-        href: `/projects/${projectId}/financials`,
+        href: paymentHref(projectId, payment.id),
       });
     }
     return { badges, items };
@@ -231,7 +231,7 @@ export function overviewActions(input: {
     items.push({
       id: payment.id,
       label: `Acknowledge ${formatINRCompact(payment.amount)} payment`,
-      href: `/projects/${projectId}/financials`,
+      href: paymentHref(projectId, payment.id),
     });
   }
   for (const request of input.changeRequests.filter((item) => item.status === "pending")) {

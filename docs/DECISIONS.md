@@ -77,4 +77,14 @@ Choices made where the build guide was silent, or where the toolchain required a
 - A posted update waits 700 ms while demo latency is on, and skips the wait when latency is off. Uploaded photos use session blob URLs. The persisted store drops `blob:` photos, so the update remains after refresh and the pictures do not.
 - Room cards link to `/projects/[id]/rooms?room=`. That workspace is still the Phase 7 placeholder.
 
+## Phase 5
+
+- The financials donut uses the same three slices as the overview: paid, awaiting acknowledgement, and the amount not yet recorded (`remaining − awaiting`). The third slice is labeled Remaining. The Remaining card stays `estimated − paid`, so paid + remaining equals the estimated cost even while money is awaiting acknowledgement.
+- The ledger total adds up every visible row, including payments that are not yet acknowledged.
+- Compact rupees keep the Phase 1 formatter, so ₹9,00,000 reads ₹9L. The shared status badge stays "Awaiting Ack", and an acknowledged badge includes a check.
+- Recording a payment warns when the amount is above Remaining (`estimated − acknowledged`). The toast uses the homeowner's first name: "Payment recorded. Awaiting Ananya's acknowledgement."
+- UPI, bank transfer, and cheque require a reference. Cash hides it. A receipt image is optional and stored as `receiptUrl`. Blob receipts are dropped on persist, the same way update photos are.
+- Stage, method, status, the open payment (`?payment=`), and record (`?record=1`) live in the query string. Search stays in the ledger. New payment notifications, command-palette payments, and overview actions open that payment.
+- A recorded or resubmitted payment uses the demo latency. The designer can edit a disputed payment before sending it back. View-only homeowners see Acknowledge and Dispute disabled.
+
 

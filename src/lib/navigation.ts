@@ -1,4 +1,5 @@
 import { formatINR } from "@/lib/format";
+import { paymentHref, recordPaymentHref } from "@/lib/project-view";
 import { actorFromUser, can, projectsForUser } from "@/lib/rules";
 import type { ChangeRequest, Payment, Project, Room, TeamMember, User } from "@/types";
 
@@ -76,7 +77,7 @@ export function commandEntries(input: {
       group: "Payments",
       label: `${formatINR(payment.amount)} · ${payment.stage}`,
       hint: projectName(visible, payment.projectId),
-      href: `/projects/${payment.projectId}/financials`,
+      href: paymentHref(payment.projectId, payment.id),
     });
   }
 
@@ -108,7 +109,7 @@ export function commandEntries(input: {
       id: "action-record-payment",
       group: "Actions",
       label: "Record payment",
-      href: `/projects/${targetId}/financials`,
+      href: recordPaymentHref(targetId),
     });
   }
   if (targetId && can(actor, "raise_change_request").allowed) {

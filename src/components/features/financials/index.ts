@@ -1,2 +1,1 @@
-// TODO: Phase 5 — Financials feature components.
-export {};
+export { FinancialsScreen } from "@/components/features/financials/financials-screen";

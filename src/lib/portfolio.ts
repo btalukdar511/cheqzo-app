@@ -1,4 +1,5 @@
 import { formatINRCompact } from "@/lib/format";
+import { paymentHref } from "@/lib/project-view";
 import { actorFromUser, can, projectsForUser, summarizeProject, type ProjectSummary } from "@/lib/rules";
 import type {
   ChangeRequest,
@@ -107,7 +108,7 @@ function projectActions(input: {
         link: {
           id: payment.id,
           label: `Acknowledge ${formatINRCompact(payment.amount)} payment`,
-          href: `/projects/${projectId}/financials`,
+          href: paymentHref(projectId, payment.id),
         },
       });
     }
@@ -118,7 +119,7 @@ function projectActions(input: {
         link: {
           id: payment.id,
           label: `Resolve ${formatINRCompact(payment.amount)} dispute`,
-          href: `/projects/${projectId}/financials`,
+          href: paymentHref(projectId, payment.id),
         },
       });
     }

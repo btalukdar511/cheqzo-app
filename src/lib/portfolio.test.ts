@@ -90,7 +90,7 @@ describe("portfolio", () => {
       "Acknowledge ₹2.5L payment",
     ]);
     expect(hero?.actions[0]?.href).toBe(`/projects/${IDS.koramangala}/updates`);
-    expect(hero?.actions[2]?.href).toBe(`/projects/${IDS.koramangala}/financials`);
+    expect(hero?.actions[2]?.href).toBe(`/projects/${IDS.koramangala}/financials?payment=${IDS.payAwaiting}`);
     expect(hero?.latestUpdate?.title).toBe("Base and wall cabinets installed");
   });
 

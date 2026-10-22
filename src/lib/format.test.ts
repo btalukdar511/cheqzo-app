@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DEMO_NOW } from "@/lib/demo";
-import { formatDate, formatINR, formatINRCompact, relativeTime } from "@/lib/format";
+import { formatDate, formatDateTime, formatINR, formatINRCompact, relativeTime } from "@/lib/format";
 
 describe("formatINR", () => {
   it("uses Indian grouping", () => {
@@ -27,6 +27,7 @@ describe("formatINRCompact", () => {
 describe("dates", () => {
   it("formats calendar dates and relative time against the demo clock", () => {
     expect(formatDate("2026-10-22T12:00:00")).toBe("22 Oct 2026");
+    expect(formatDateTime("2026-10-20T10:42:00")).toBe("20 Oct, 10:42");
     expect(formatDate(DEMO_NOW)).toBe("22 Oct 2026");
     expect(relativeTime("2026-10-20T12:00:00")).toBe("2 days ago");
   });
