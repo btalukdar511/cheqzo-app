@@ -1,0 +1,321 @@
+import { delay } from "@/lib/demo";
+import {
+  acknowledgePayment,
+  actorFromUser,
+  approveChangeRequest,
+  approveUpdate,
+  disputePayment,
+  projectHealth,
+  rejectChangeRequest,
+  rejectUpdate,
+  requestUpdateChanges,
+  resubmitPayment,
+  buildProject,
+  summarizeProject,
+  withdrawChangeRequest,
+  type Actor,
+  type HealthResult,
+  type ProjectCreateInput,
+  type ProjectSummary,
+} from "@/lib/rules";
+import { useDb } from "@/store/db";
+import type {
+  ChangeRequest,
+  Database,
+  Notification,
+  Payment,
+  Project,
+  Room,
+  SiteUpdate,
+  TeamMember,
+  User,
+} from "@/types";
+
+async function wait(): Promise<void> {
+  if (useDb.getState().latencyEnabled) await delay();
+}
+
+function database(): Database {
+  const state = useDb.getState();
+  return {
+    users: state.users,
+    projects: state.projects,
+    rooms: state.rooms,
+    updates: state.updates,
+    payments: state.payments,
+    changeRequests: state.changeRequests,
+    teamMembers: state.teamMembers,
+    notifications: state.notifications,
+  };
+}
+
+function requireUser(userId: string): User {
+  const user = useDb.getState().users.find((item) => item.id === userId);
+  if (!user) throw new Error("Unknown user");
+  return user;
+}
+
+function actor(userId: string): Actor {
+  return actorFromUser(requireUser(userId));
+}
+
+export const api = {
+  async listUsers(): Promise<User[]> {
+    await wait();
+    return useDb.getState().users;
+  },
+
+  async getUser(userId: string): Promise<User | null> {
+    await wait();
+    return useDb.getState().users.find((user) => user.id === userId) ?? null;
+  },
+
+  async listProjects(): Promise<Project[]> {
+    await wait();
+    return useDb.getState().projects;
+  },
+
+  async getProject(projectId: string): Promise<Project | null> {
+    await wait();
+    return useDb.getState().projects.find((project) => project.id === projectId) ?? null;
+  },
+
+  async listRooms(projectId: string): Promise<Room[]> {
+    await wait();
+    return useDb.getState().rooms.filter((room) => room.projectId === projectId);
+  },
+
+  async listUpdates(projectId: string): Promise<SiteUpdate[]> {
+    await wait();
+    return useDb.getState().updates.filter((update) => update.projectId === projectId);
+  },
+
+  async listPayments(projectId: string): Promise<Payment[]> {
+    await wait();
+    return useDb.getState().payments.filter((payment) => payment.projectId === projectId);
+  },
+
+  async listChangeRequests(projectId: string): Promise<ChangeRequest[]> {
+    await wait();
+    return useDb.getState().changeRequests.filter((request) => request.projectId === projectId);
+  },
+
+  async listTeam(projectId: string): Promise<TeamMember[]> {
+    await wait();
+    return useDb.getState().teamMembers.filter((member) => member.projectId === projectId);
+  },
+
+  async listNotifications(userId: string): Promise<Notification[]> {
+    await wait();
+    return useDb.getState().notifications.filter((item) => item.userId === userId);
+  },
+
+  async projectHealth(projectId: string): Promise<HealthResult | null> {
+    await wait();
+    const data = database();
+    const project = data.projects.find((item) => item.id === projectId);
+    if (!project) return null;
+    return projectHealth({
+      project,
+      updates: data.updates,
+      payments: data.payments,
+      changeRequests: data.changeRequests,
+    });
+  },
+
+  async projectSummary(projectId: string): Promise<ProjectSummary | null> {
+    await wait();
+    const data = database();
+    const project = data.projects.find((item) => item.id === projectId);
+    if (!project) return null;
+    return summarizeProject({
+      project,
+      rooms: data.rooms,
+      updates: data.updates,
+      payments: data.payments,
+      changeRequests: data.changeRequests,
+    });
+  },
+
+  async reset(): Promise<void> {
+    await wait();
+    useDb.getState().reset();
+  },
+
+  async setLatency(enabled: boolean): Promise<void> {
+    useDb.getState().setLatencyEnabled(enabled);
+  },
+
+  async approveUpdate(userId: string, updateId: string): Promise<SiteUpdate> {
+    await wait();
+    const state = useDb.getState();
+    const update = state.updates.find((item) => item.id === updateId);
+    const room = update ? state.rooms.find((item) => item.id === update.roomId) : undefined;
+    if (!update || !room) throw new Error("Update not found");
+    const result = approveUpdate({ update, room, actor: actor(userId) });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      updates: state.updates.map((item) => (item.id === updateId ? result.value.update : item)),
+      rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)),
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.update;
+  },
+
+  async requestUpdateChanges(userId: string, updateId: string, comment: string): Promise<SiteUpdate> {
+    await wait();
+    const state = useDb.getState();
+    const update = state.updates.find((item) => item.id === updateId);
+    if (!update) throw new Error("Update not found");
+    const result = requestUpdateChanges({ update, actor: actor(userId), comment });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      updates: state.updates.map((item) => (item.id === updateId ? result.value.update : item)),
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.update;
+  },
+
+  async rejectUpdate(userId: string, updateId: string, reason: string): Promise<SiteUpdate> {
+    await wait();
+    const state = useDb.getState();
+    const update = state.updates.find((item) => item.id === updateId);
+    if (!update) throw new Error("Update not found");
+    const result = rejectUpdate({ update, actor: actor(userId), reason });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      updates: state.updates.map((item) => (item.id === updateId ? result.value.update : item)),
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.update;
+  },
+
+  async acknowledgePayment(userId: string, paymentId: string): Promise<Payment> {
+    await wait();
+    const state = useDb.getState();
+    const payment = state.payments.find((item) => item.id === paymentId);
+    const project = payment ? state.projects.find((item) => item.id === payment.projectId) : undefined;
+    if (!payment || !project) throw new Error("Payment not found");
+    const result = acknowledgePayment({ payment, actor: actor(userId), designerId: project.designerId });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      payments: state.payments.map((item) => (item.id === paymentId ? result.value.payment : item)),
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.payment;
+  },
+
+  async disputePayment(userId: string, paymentId: string, reason: string): Promise<Payment> {
+    await wait();
+    const state = useDb.getState();
+    const payment = state.payments.find((item) => item.id === paymentId);
+    const project = payment ? state.projects.find((item) => item.id === payment.projectId) : undefined;
+    if (!payment || !project) throw new Error("Payment not found");
+    const result = disputePayment({ payment, actor: actor(userId), reason, designerId: project.designerId });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      payments: state.payments.map((item) => (item.id === paymentId ? result.value.payment : item)),
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.payment;
+  },
+
+  async resubmitPayment(userId: string, paymentId: string): Promise<Payment> {
+    await wait();
+    const state = useDb.getState();
+    const payment = state.payments.find((item) => item.id === paymentId);
+    const project = payment ? state.projects.find((item) => item.id === payment.projectId) : undefined;
+    if (!payment || !project) throw new Error("Payment not found");
+    const result = resubmitPayment({ payment, actor: actor(userId), homeownerId: project.homeownerId });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      payments: state.payments.map((item) => (item.id === paymentId ? result.value.payment : item)),
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.payment;
+  },
+
+  async approveChangeRequest(userId: string, requestId: string): Promise<ChangeRequest> {
+    await wait();
+    const state = useDb.getState();
+    const request = state.changeRequests.find((item) => item.id === requestId);
+    if (!request) throw new Error("Change request not found");
+    const result = approveChangeRequest({ request, actor: actor(userId) });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      changeRequests: state.changeRequests.map((item) => (item.id === requestId ? result.value.request : item)),
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.request;
+  },
+
+  async rejectChangeRequest(userId: string, requestId: string, comment?: string): Promise<ChangeRequest> {
+    await wait();
+    const state = useDb.getState();
+    const request = state.changeRequests.find((item) => item.id === requestId);
+    if (!request) throw new Error("Change request not found");
+    const result = rejectChangeRequest({ request, actor: actor(userId), comment });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      changeRequests: state.changeRequests.map((item) => (item.id === requestId ? result.value.request : item)),
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.request;
+  },
+
+  async withdrawChangeRequest(userId: string, requestId: string): Promise<ChangeRequest> {
+    await wait();
+    const state = useDb.getState();
+    const request = state.changeRequests.find((item) => item.id === requestId);
+    if (!request) throw new Error("Change request not found");
+    const result = withdrawChangeRequest({ request, actor: actor(userId) });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      changeRequests: state.changeRequests.map((item) => (item.id === requestId ? result.value.request : item)),
+    });
+    return result.value.request;
+  },
+
+  async markNotificationRead(notificationId: string): Promise<void> {
+    await wait();
+    const state = useDb.getState();
+    useDb.setState({
+      notifications: state.notifications.map((item) =>
+        item.id === notificationId ? { ...item, read: true } : item,
+      ),
+    });
+  },
+
+  async createProject(userId: string, draft: ProjectCreateInput): Promise<Project> {
+    if (useDb.getState().latencyEnabled) await delay(800);
+    const state = useDb.getState();
+    const designer = requireUser(userId);
+    const result = buildProject({
+      actor: actor(userId),
+      designer,
+      existingUsers: state.users,
+      draft,
+    });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      users: result.value.user ? [...state.users, result.value.user] : state.users,
+      projects: [...state.projects, result.value.project],
+      rooms: [...state.rooms, ...result.value.rooms],
+      teamMembers: [...state.teamMembers, ...result.value.teamMembers],
+      notifications: result.value.notification
+        ? [result.value.notification, ...state.notifications]
+        : state.notifications,
+    });
+    return result.value.project;
+  },
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await wait();
+    const state = useDb.getState();
+    useDb.setState({
+      notifications: state.notifications.map((item) =>
+        item.userId === userId ? { ...item, read: true } : item,
+      ),
+    });
+  },
+};

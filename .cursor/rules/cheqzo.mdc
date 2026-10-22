@@ -1,0 +1,34 @@
+---
+description: Cheqzo engineering rules
+globs:
+alwaysApply: true
+---
+
+# Cheqzo project rules
+
+## Source of truth
+- docs/CHEQZO_BUILD_GUIDE.md is the spec. Follow it exactly. If it is silent, choose the simplest option and log it in docs/DECISIONS.md.
+- Build only the phase requested. Never start the next phase.
+
+## Stack (do not substitute)
+- Next.js App Router, TypeScript strict, Tailwind, shadcn/ui, lucide-react, TanStack Table, React Hook Form + Zod, Zustand (persist), Recharts, date-fns, framer-motion, Sonner, Vitest.
+
+## Code standards
+- No `any`. Prefer explicit types from src/types/index.ts.
+- Business logic lives in src/lib/rules.ts as pure functions. Components must not re-implement health, progress, budget, or permission logic.
+- All data access goes through src/data/api.ts (async, with latency). Components never import seed data directly.
+- Use "use client" only where needed; keep pages as server components when possible.
+- Small components (<200 lines). Shared UI goes in components/shared and is reused, not duplicated.
+- Use design tokens (CSS variables). No hard-coded hex colors in components.
+- Format money with formatINR / MoneyText and dates relative to DEMO_NOW, never Date.now().
+
+## UX standards
+- Every list: loading skeleton, empty state, filtered-empty state.
+- Every mutation: toast + immediate cross-screen update.
+- Disabled actions must show a tooltip explaining why.
+- Desktop-first: design for 1440px, support down to 1280px. No mobile layouts.
+
+## Process
+- After changes run: npm run lint && npm run test && npm run build. Fix all errors before finishing.
+- Do not add features, libraries, or files not required by the current phase.
+- Summarize what changed and list any deviations from the guide at the end of each task.
