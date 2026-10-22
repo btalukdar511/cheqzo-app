@@ -1,16 +1,19 @@
-import { delay } from "@/lib/demo";
+import { delay, uniqueId } from "@/lib/demo";
 import {
   acknowledgePayment,
   actorFromUser,
+  addUpdateComment,
   approveChangeRequest,
   approveUpdate,
+  buildProject,
+  canSeeProject,
   disputePayment,
+  postUpdate,
   projectHealth,
   rejectChangeRequest,
   rejectUpdate,
   requestUpdateChanges,
   resubmitPayment,
-  buildProject,
   summarizeProject,
   withdrawChangeRequest,
   type Actor,
@@ -144,6 +147,72 @@ export const api = {
 
   async setLatency(enabled: boolean): Promise<void> {
     useDb.getState().setLatencyEnabled(enabled);
+  },
+
+  async postUpdate(
+    userId: string,
+    input: {
+      projectId: string;
+      roomId: string;
+      title: string;
+      description: string;
+      photos: SiteUpdate["photos"];
+      proposedProgress: number;
+      notifyClient: boolean;
+    },
+  ): Promise<SiteUpdate> {
+    if (useDb.getState().latencyEnabled) await delay(700);
+    const state = useDb.getState();
+    const user = requireUser(userId);
+    const room = state.rooms.find((item) => item.id === input.roomId && item.projectId === input.projectId);
+    const project = state.projects.find((item) => item.id === input.projectId);
+    if (!room || !project) throw new Error("Room not found");
+    if (!canSeeProject(user, project.id, state.projects, state.teamMembers)) {
+      throw new Error("You don't have access to this project");
+    }
+    const result = postUpdate({
+      actor: actorFromUser(user),
+      room,
+      homeownerId: project.homeownerId,
+      title: input.title,
+      description: input.description,
+      photos: input.photos,
+      proposedProgress: input.proposedProgress,
+      notifyClient: input.notifyClient,
+      updateId: uniqueId("upd"),
+      notificationId: uniqueId("nt"),
+    });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      updates: [result.value.update, ...state.updates],
+      rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)),
+      notifications: result.value.notification
+        ? [result.value.notification, ...state.notifications]
+        : state.notifications,
+    });
+    return result.value.update;
+  },
+
+  async addUpdateComment(userId: string, updateId: string, text: string): Promise<SiteUpdate> {
+    await wait();
+    const state = useDb.getState();
+    const user = requireUser(userId);
+    const update = state.updates.find((item) => item.id === updateId);
+    if (!update) throw new Error("Update not found");
+    if (!canSeeProject(user, update.projectId, state.projects, state.teamMembers)) {
+      throw new Error("You don't have access to this project");
+    }
+    const result = addUpdateComment({
+      update,
+      actor: actorFromUser(user),
+      text,
+      commentId: uniqueId("cmt"),
+    });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      updates: state.updates.map((item) => (item.id === updateId ? result.value.update : item)),
+    });
+    return result.value.update;
   },
 
   async approveUpdate(userId: string, updateId: string): Promise<SiteUpdate> {

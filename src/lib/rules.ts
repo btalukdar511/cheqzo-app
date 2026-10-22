@@ -349,7 +349,7 @@ export function approveUpdate(input: {
         body: `${input.room.name} progress updated to ${progress}%`,
         createdAt: at,
         read: false,
-        href: `/projects/${input.update.projectId}/updates`,
+        href: `/projects/${input.update.projectId}/updates?update=${input.update.id}`,
       },
     },
   };
@@ -390,7 +390,7 @@ export function requestUpdateChanges(input: {
         body: comment,
         createdAt: at,
         read: false,
-        href: `/projects/${input.update.projectId}/updates`,
+        href: `/projects/${input.update.projectId}/updates?update=${input.update.id}`,
       },
     },
   };
@@ -426,7 +426,99 @@ export function rejectUpdate(input: {
         body: reason,
         createdAt: at,
         read: false,
-        href: `/projects/${input.update.projectId}/updates`,
+        href: `/projects/${input.update.projectId}/updates?update=${input.update.id}`,
+      },
+    },
+  };
+}
+
+export function postUpdate(input: {
+  actor: Actor;
+  room: Room;
+  homeownerId: string;
+  title: string;
+  description: string;
+  photos: SiteUpdate["photos"];
+  proposedProgress: number;
+  notifyClient: boolean;
+  now?: string;
+  updateId?: string;
+  notificationId?: string;
+}): RuleResult<{ update: SiteUpdate; room: Room; notification?: Notification }> {
+  const permission = can(input.actor, "post_update");
+  if (!permission.allowed) return fail(permission.reason);
+  const title = input.title.trim();
+  if (!title) return fail("Enter a title");
+  if (input.photos.length === 0) return fail("Add at least one photo");
+  if (input.photos.some((photo) => !photo.url || !photo.kind)) return fail("Each photo needs an image");
+  if (!Number.isFinite(input.proposedProgress) || input.proposedProgress < 0 || input.proposedProgress > 100) {
+    return fail("Proposed progress has to be between 0 and 100");
+  }
+  if (input.proposedProgress < input.room.progress) {
+    return fail("Proposed progress has to be at least the current progress");
+  }
+  const at = input.now ?? DEMO_NOW.toISOString();
+  const id = input.updateId ?? createId("upd");
+  const update: SiteUpdate = {
+    id,
+    projectId: input.room.projectId,
+    roomId: input.room.id,
+    authorId: input.actor.id,
+    title,
+    description: input.description.trim(),
+    photos: input.photos.map((photo) => ({
+      url: photo.url,
+      caption: photo.caption.trim(),
+      kind: photo.kind,
+    })),
+    previousProgress: input.room.progress,
+    proposedProgress: input.proposedProgress,
+    status: "pending",
+    createdAt: at,
+    thread: [],
+  };
+  const notification: Notification | undefined = input.notifyClient
+    ? {
+        id: input.notificationId ?? createId("nt"),
+        userId: input.homeownerId,
+        projectId: input.room.projectId,
+        type: "update_pending",
+        title: `${input.room.name} update awaiting your approval`,
+        body: title,
+        createdAt: at,
+        read: false,
+        href: `/projects/${input.room.projectId}/updates?update=${id}`,
+      }
+    : undefined;
+  return {
+    ok: true,
+    value: {
+      update,
+      room: { ...input.room, status: "awaiting_approval" },
+      notification,
+    },
+  };
+}
+
+export function addUpdateComment(input: {
+  update: SiteUpdate;
+  actor: Actor;
+  text: string;
+  now?: string;
+  commentId?: string;
+}): RuleResult<{ update: SiteUpdate }> {
+  const text = input.text.trim();
+  if (!text) return fail("Write a comment");
+  const at = input.now ?? DEMO_NOW.toISOString();
+  return {
+    ok: true,
+    value: {
+      update: {
+        ...input.update,
+        thread: [
+          ...input.update.thread,
+          { id: input.commentId ?? createId("cmt"), authorId: input.actor.id, text, createdAt: at },
+        ],
       },
     },
   };

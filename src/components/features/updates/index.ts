@@ -1,2 +1,1 @@
-// TODO: Phase 4 — Updates feature components.
-export {};
+export { UpdatesScreen } from "@/components/features/updates/updates-screen";

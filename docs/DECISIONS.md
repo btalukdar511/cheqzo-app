@@ -64,3 +64,17 @@ Choices made where the build guide was silent, or where the toolchain required a
 - Create waits 800 ms while demo latency is on, and skips the wait when latency is off.
 - A project with no updates, payments, or change requests shows an empty overview, including any rooms from the wizard. Seeded projects keep the Phase 4 overview placeholder.
 
+## Phase 4
+
+- The overview is the same screen for a new project and a seeded one. Empty activity, an empty action list, and an empty room grid are the empty states. The Phase 3 placeholder is no longer used.
+- The budget donut slices are paid, awaiting acknowledgement, and the amount not yet recorded (`remaining − awaiting`). Those three add up to the estimated cost. The Remaining card stays `estimated − paid`, which still includes money that is awaiting acknowledgement.
+- Recent activity lists the eight newest updates, payments, and change requests.
+- The next payment stage is the stage after the latest recorded payment. Koramangala's latest payment is Carpentry, so the next stage is Electrical & Plumbing. A project with no payments shows Advance.
+- Feed dates group as Today, Yesterday, This week, Last week, then the month name. Weeks start on Monday, measured from `DEMO_NOW`.
+- Filters, sort, and the open update are stored in the query string. Nothing is selected until a card or a `?update=` link is opened.
+- Approve, request changes, and reject notify the designer and link to that update. Posting with "Notify client" on notifies the homeowner the same way. Comments do not send a notification.
+- Anyone who can open the project can add a discussion comment. Decisions stay on the permission matrix: the designer sees no decision buttons, and view-only access sees them disabled.
+- A posted update waits 700 ms while demo latency is on, and skips the wait when latency is off. Uploaded photos use session blob URLs. The persisted store drops `blob:` photos, so the update remains after refresh and the pictures do not.
+- Room cards link to `/projects/[id]/rooms?room=`. That workspace is still the Phase 7 placeholder.
+
+

@@ -1,6 +1,13 @@
-// TODO: Phase 4 — Updates feed (J2).
-import { RoutePlaceholder } from "@/components/shell/RoutePlaceholder";
+import { Suspense } from "react";
+
+import { UpdatesScreen } from "@/components/features/updates";
+import { SplitSkeleton } from "@/components/shared/Skeletons";
 
 export default function Page() {
-  return <RoutePlaceholder title="Updates" />;
+  return (
+    <Suspense fallback={<SplitSkeleton />}>
+      <UpdatesScreen />
+    </Suspense>
+  );
 }
+

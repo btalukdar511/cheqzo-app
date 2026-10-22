@@ -32,7 +32,10 @@ export const useDb = create<DbState>()(
         users: state.users,
         projects: state.projects,
         rooms: state.rooms,
-        updates: state.updates,
+        updates: state.updates.map((update) => ({
+          ...update,
+          photos: update.photos.filter((photo) => !photo.url.startsWith("blob:")),
+        })),
         payments: state.payments,
         changeRequests: state.changeRequests,
         teamMembers: state.teamMembers,
