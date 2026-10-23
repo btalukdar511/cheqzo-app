@@ -106,11 +106,9 @@ export function pendingChangeChip(
 export function financialSlices(
   summary: Pick<ProjectSummary, "totalPaid" | "awaitingAcknowledgement" | "remaining">,
 ): BudgetSlice[] {
-  return budgetSlices(summary).map((slice) => {
-    if (slice.key === "awaiting") return { ...slice, label: "Awaiting ack" };
-    if (slice.key === "remaining") return { ...slice, label: "Remaining" };
-    return slice;
-  });
+  return budgetSlices(summary).map((slice) =>
+    slice.key === "awaiting" ? { ...slice, label: "Awaiting ack" } : slice,
+  );
 }
 
 export function exceedsRemaining(amount: number, balance: number): boolean {

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { api } from "@/data/api";
 import { createSeedData, IDS } from "@/data/seed";
 import { assemblePortfolio, portfolioKpis, queryPortfolio } from "@/lib/portfolio";
+import { updateHref } from "@/lib/project-view";
 import { actorFromUser, allocationStatus, buildProject, type ProjectCreateInput } from "@/lib/rules";
 import { useDb } from "@/store/db";
 import type { User } from "@/types";
@@ -89,7 +90,8 @@ describe("portfolio", () => {
       "Approve Living Room update",
       "Acknowledge ₹2.5L payment",
     ]);
-    expect(hero?.actions[0]?.href).toBe(`/projects/${IDS.koramangala}/updates`);
+    expect(hero?.actions[0]?.href).toBe(updateHref(IDS.koramangala, "upd_kora_kitchen_cabinets"));
+    expect(hero?.actions[1]?.href).toBe(updateHref(IDS.koramangala, "upd_kora_living_frame"));
     expect(hero?.actions[2]?.href).toBe(`/projects/${IDS.koramangala}/financials?payment=${IDS.payAwaiting}`);
     expect(hero?.latestUpdate?.title).toBe("Base and wall cabinets installed");
   });

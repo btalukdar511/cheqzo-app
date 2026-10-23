@@ -1,5 +1,5 @@
 import { formatINRCompact } from "@/lib/format";
-import { paymentHref } from "@/lib/project-view";
+import { paymentHref, updateHref } from "@/lib/project-view";
 import { actorFromUser, can, projectsForUser, summarizeProject, type ProjectSummary } from "@/lib/rules";
 import type {
   ChangeRequest,
@@ -84,7 +84,7 @@ function projectActions(input: {
         link: {
           id: update.id,
           label: `Approve ${roomName(input.rooms, update.roomId)} update`,
-          href: `/projects/${projectId}/updates`,
+          href: updateHref(projectId, update.id),
         },
       });
     }
@@ -95,7 +95,7 @@ function projectActions(input: {
         link: {
           id: update.id,
           label: `Revise ${roomName(input.rooms, update.roomId)} update`,
-          href: `/projects/${projectId}/updates`,
+          href: updateHref(projectId, update.id),
         },
       });
     }

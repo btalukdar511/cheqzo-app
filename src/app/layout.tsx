@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
+import { Suspense } from "react";
+import { DemoReset } from "@/components/shell/DemoReset";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -29,6 +31,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <TooltipProvider>
+          <Suspense fallback={null}>
+            <DemoReset />
+          </Suspense>
           {children}
           <Toaster position="bottom-right" theme="light" />
         </TooltipProvider>

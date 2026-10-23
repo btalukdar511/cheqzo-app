@@ -83,6 +83,7 @@ describe("financials", () => {
     expect(stageState(carpentry)).toBe("current");
     expect(pendingChangeChip(data.changeRequests, IDS.koramangala)?.label).toBe("+₹1.4L pending change");
     const slices = financialSlices({ totalPaid: 900_000, awaitingAcknowledgement: 250_000, remaining: 890_000 });
+    expect(slices.map((slice) => slice.label)).toEqual(["Paid", "Awaiting ack", "Still to record"]);
     expect(slices.map((slice) => slice.amount)).toEqual([900_000, 250_000, 640_000]);
     expect(slices.reduce((total, slice) => total + slice.amount, 0)).toBe(1_790_000);
   });
