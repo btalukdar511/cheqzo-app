@@ -1,6 +1,11 @@
-// TODO: Phase 7 — Account settings and demo controls (S1).
-import { RoutePlaceholder } from "@/components/shell/RoutePlaceholder";
+import { Suspense } from "react";
+
+import { AccountScreen } from "@/components/features/settings";
 
 export default function Page() {
-  return <RoutePlaceholder title="Settings" />;
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-secondary" />}>
+      <AccountScreen />
+    </Suspense>
+  );
 }

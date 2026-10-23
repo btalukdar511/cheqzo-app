@@ -1,27 +1,50 @@
 import { delay, uniqueId } from "@/lib/demo";
 import {
+  acceptInvite,
   acknowledgePayment,
   actorFromUser,
+  addBeforePhoto,
+  addInspiration,
+  addRoom,
+  addSpec,
   addUpdateComment,
   approveChangeRequest,
   approveUpdate,
   buildProject,
   canSeeProject,
+  changeMemberAccess,
+  commentOnInspiration,
+  deleteSpec,
   disputePayment,
+  inviteMember,
   postUpdate,
+  raiseChangeRequest,
   recordPayment,
   projectHealth,
   rejectChangeRequest,
   rejectUpdate,
+  removeInspiration,
+  removeMember,
   requestUpdateChanges,
+  resendInvite,
   resubmitPayment,
+  setSpecStatus,
   summarizeProject,
+  updateActiveTask,
+  updateProfile,
+  updateProjectSettings,
+  updateSpec,
   withdrawChangeRequest,
   type Actor,
+  type ChangeRequestDraft,
   type HealthResult,
+  type InviteDraft,
   type PaymentWrite,
   type ProjectCreateInput,
+  type ProjectRoomDraft,
+  type ProjectSettingsPatch,
   type ProjectSummary,
+  type SpecDraft,
 } from "@/lib/rules";
 import { useDb } from "@/store/db";
 import type {
@@ -62,6 +85,41 @@ function requireUser(userId: string): User {
 
 function actor(userId: string): Actor {
   return actorFromUser(requireUser(userId));
+}
+
+function requireVisibleProject(userId: string, projectId: string): { user: User; project: Project } {
+  const state = useDb.getState();
+  const user = requireUser(userId);
+  const project = state.projects.find((item) => item.id === projectId);
+  if (!project) throw new Error("Project not found");
+  if (!canSeeProject(user, project.id, state.projects, state.teamMembers)) {
+    throw new Error("You don't have access to this project");
+  }
+  return { user, project };
+}
+
+function requireVisibleRoom(userId: string, roomId: string): { user: User; project: Project; room: Room } {
+  const state = useDb.getState();
+  const room = state.rooms.find((item) => item.id === roomId);
+  if (!room) throw new Error("Room not found");
+  const visible = requireVisibleProject(userId, room.projectId);
+  return { ...visible, room };
+}
+
+function requireVisibleRequest(userId: string, requestId: string): { request: ChangeRequest; project: Project } {
+  const state = useDb.getState();
+  const request = state.changeRequests.find((item) => item.id === requestId);
+  if (!request) throw new Error("Change request not found");
+  const visible = requireVisibleProject(userId, request.projectId);
+  return { request, project: visible.project };
+}
+
+function requireVisibleMember(userId: string, memberId: string): { member: TeamMember; project: Project } {
+  const state = useDb.getState();
+  const member = state.teamMembers.find((item) => item.id === memberId);
+  if (!member) throw new Error("Team member not found");
+  const visible = requireVisibleProject(userId, member.projectId);
+  return { member, project: visible.project };
 }
 
 function requireVisiblePayment(userId: string, paymentId: string): { payment: Payment; project: Project } {
@@ -345,12 +403,33 @@ export const api = {
     return result.value.payment;
   },
 
+  async raiseChangeRequest(userId: string, projectId: string, draft: ChangeRequestDraft): Promise<ChangeRequest> {
+    await wait();
+    const state = useDb.getState();
+    const { project } = requireVisibleProject(userId, projectId);
+    if (draft.roomId && !state.rooms.some((room) => room.id === draft.roomId && room.projectId === projectId)) {
+      throw new Error("Room not found");
+    }
+    const result = raiseChangeRequest({
+      actor: actor(userId),
+      project,
+      draft,
+      requestId: uniqueId("cr"),
+      notificationId: uniqueId("nt"),
+    });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      changeRequests: [result.value.request, ...state.changeRequests],
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.request;
+  },
+
   async approveChangeRequest(userId: string, requestId: string): Promise<ChangeRequest> {
     await wait();
     const state = useDb.getState();
-    const request = state.changeRequests.find((item) => item.id === requestId);
-    if (!request) throw new Error("Change request not found");
-    const result = approveChangeRequest({ request, actor: actor(userId) });
+    const { request } = requireVisibleRequest(userId, requestId);
+    const result = approveChangeRequest({ request, actor: actor(userId), notificationId: uniqueId("nt") });
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       changeRequests: state.changeRequests.map((item) => (item.id === requestId ? result.value.request : item)),
@@ -362,9 +441,13 @@ export const api = {
   async rejectChangeRequest(userId: string, requestId: string, comment?: string): Promise<ChangeRequest> {
     await wait();
     const state = useDb.getState();
-    const request = state.changeRequests.find((item) => item.id === requestId);
-    if (!request) throw new Error("Change request not found");
-    const result = rejectChangeRequest({ request, actor: actor(userId), comment });
+    const { request } = requireVisibleRequest(userId, requestId);
+    const result = rejectChangeRequest({
+      request,
+      actor: actor(userId),
+      comment,
+      notificationId: uniqueId("nt"),
+    });
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       changeRequests: state.changeRequests.map((item) => (item.id === requestId ? result.value.request : item)),
@@ -376,8 +459,7 @@ export const api = {
   async withdrawChangeRequest(userId: string, requestId: string): Promise<ChangeRequest> {
     await wait();
     const state = useDb.getState();
-    const request = state.changeRequests.find((item) => item.id === requestId);
-    if (!request) throw new Error("Change request not found");
+    const { request } = requireVisibleRequest(userId, requestId);
     const result = withdrawChangeRequest({ request, actor: actor(userId) });
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
@@ -417,6 +499,206 @@ export const api = {
         : state.notifications,
     });
     return result.value.project;
+  },
+
+  async addRoom(userId: string, projectId: string, draft: ProjectRoomDraft): Promise<Room> {
+    await wait();
+    const state = useDb.getState();
+    requireVisibleProject(userId, projectId);
+    const result = addRoom({ actor: actor(userId), projectId, draft, roomId: uniqueId("rm") });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({ rooms: [...state.rooms, result.value.room] });
+    return result.value.room;
+  },
+
+  async updateActiveTask(userId: string, roomId: string, activeTask: string): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = updateActiveTask({ actor: actor(userId), room, activeTask });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async addSpec(userId: string, roomId: string, draft: SpecDraft): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = addSpec({ actor: actor(userId), room, draft, specId: uniqueId("spec") });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async updateSpec(userId: string, roomId: string, specId: string, draft: SpecDraft): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = updateSpec({ actor: actor(userId), room, specId, draft });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async deleteSpec(userId: string, roomId: string, specId: string): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = deleteSpec({ actor: actor(userId), room, specId });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async setSpecStatus(
+    userId: string,
+    roomId: string,
+    specId: string,
+    status: Room["specs"][number]["status"],
+  ): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = setSpecStatus({ actor: actor(userId), room, specId, status });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async addBeforePhoto(userId: string, roomId: string, url: string): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = addBeforePhoto({ actor: actor(userId), room, url });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async addInspiration(userId: string, roomId: string, input: { imageUrl: string; note: string; tag: string }): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = addInspiration({ actor: actor(userId), room, ...input, itemId: uniqueId("ins") });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async removeInspiration(userId: string, roomId: string, itemId: string): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = removeInspiration({ actor: actor(userId), room, itemId });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async commentOnInspiration(userId: string, roomId: string, itemId: string, text: string): Promise<Room> {
+    await wait();
+    const { room } = requireVisibleRoom(userId, roomId);
+    const result = commentOnInspiration({
+      actor: actor(userId),
+      room,
+      itemId,
+      text,
+      commentId: uniqueId("cmt"),
+    });
+    if (!result.ok) throw new Error(result.reason);
+    const state = useDb.getState();
+    useDb.setState({ rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)) });
+    return result.value.room;
+  },
+
+  async inviteMember(userId: string, projectId: string, draft: InviteDraft): Promise<TeamMember> {
+    await wait();
+    const state = useDb.getState();
+    const { project } = requireVisibleProject(userId, projectId);
+    const result = inviteMember({
+      actor: actor(userId),
+      project,
+      members: state.teamMembers,
+      draft,
+      memberId: uniqueId("tm"),
+      notificationId: uniqueId("nt"),
+    });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      teamMembers: [...state.teamMembers, result.value.member],
+      notifications: [result.value.notification, ...state.notifications],
+    });
+    return result.value.member;
+  },
+
+  async changeMemberAccess(userId: string, memberId: string, access: "view" | "approve"): Promise<TeamMember> {
+    await wait();
+    const state = useDb.getState();
+    const { member } = requireVisibleMember(userId, memberId);
+    const result = changeMemberAccess({ actor: actor(userId), member, users: state.users, access });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      teamMembers: state.teamMembers.map((item) => (item.id === member.id ? result.value.member : item)),
+      users: result.value.user
+        ? state.users.map((item) => (item.id === result.value.user?.id ? result.value.user : item))
+        : state.users,
+    });
+    return result.value.member;
+  },
+
+  async removeMember(userId: string, memberId: string): Promise<void> {
+    await wait();
+    const state = useDb.getState();
+    const { member } = requireVisibleMember(userId, memberId);
+    const result = removeMember({ actor: actor(userId), member });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({ teamMembers: state.teamMembers.filter((item) => item.id !== result.value.memberId) });
+  },
+
+  async resendInvite(userId: string, memberId: string): Promise<TeamMember> {
+    await wait();
+    const { member } = requireVisibleMember(userId, memberId);
+    const result = resendInvite({ actor: actor(userId), member });
+    if (!result.ok) throw new Error(result.reason);
+    return result.value.member;
+  },
+
+  async acceptInvite(memberId: string): Promise<TeamMember> {
+    const state = useDb.getState();
+    const member = state.teamMembers.find((item) => item.id === memberId);
+    if (!member) throw new Error("Team member not found");
+    const result = acceptInvite({ member });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      teamMembers: state.teamMembers.map((item) => (item.id === member.id ? result.value.member : item)),
+    });
+    return result.value.member;
+  },
+
+  async updateProjectSettings(userId: string, projectId: string, patch: ProjectSettingsPatch): Promise<Project> {
+    await wait();
+    const state = useDb.getState();
+    const { project } = requireVisibleProject(userId, projectId);
+    const result = updateProjectSettings({ actor: actor(userId), project, patch });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      projects: state.projects.map((item) => (item.id === project.id ? result.value.project : item)),
+    });
+    return result.value.project;
+  },
+
+  async updateProfile(userId: string, input: { name: string; email: string; avatarUrl?: string }): Promise<User> {
+    await wait();
+    const state = useDb.getState();
+    const user = requireUser(userId);
+    const result = updateProfile({ user, members: state.teamMembers, ...input });
+    if (!result.ok) throw new Error(result.reason);
+    useDb.setState({
+      users: state.users.map((item) => (item.id === user.id ? result.value.user : item)),
+      teamMembers: result.value.members,
+    });
+    return result.value.user;
   },
 
   async markAllNotificationsRead(userId: string): Promise<void> {

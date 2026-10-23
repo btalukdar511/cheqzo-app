@@ -1,2 +1,1 @@
-// TODO: Phase 7 — Rooms feature components.
-export {};
+export { RoomsScreen } from "@/components/features/rooms/rooms-screen";

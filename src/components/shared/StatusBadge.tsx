@@ -4,6 +4,7 @@ const STATUS_PRESENTATION: Record<string, { label: string; className: string; co
   pending: { label: "Pending", className: "bg-warning/10 text-warning" },
   approved: { label: "Approved", className: "bg-success/10 text-success" },
   rejected: { label: "Rejected", className: "bg-danger/10 text-danger" },
+  withdrawn: { label: "Withdrawn", className: "bg-secondary text-muted-foreground" },
   changes_requested: { label: "Changes Requested", className: "bg-info/10 text-info" },
   awaiting_ack: { label: "Awaiting Ack", className: "bg-warning/10 text-warning" },
   acknowledged: { label: "Acknowledged", className: "bg-success/10 text-success", confirmed: true },

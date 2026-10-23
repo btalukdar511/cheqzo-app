@@ -1,2 +1,1 @@
-// TODO: Phase 6 — Change-request feature components.
-export {};
+export { ChangesScreen } from "@/components/features/changes/changes-screen";

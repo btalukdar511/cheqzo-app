@@ -56,6 +56,7 @@ export interface InspirationItem {
   imageUrl: string;
   note: string;
   tag: string;
+  comments: Comment[];
 }
 
 export interface MaterialSpec {
@@ -150,6 +151,8 @@ export interface TeamMember {
   role: "owner" | "family" | "designer" | "site_supervisor";
   access: MemberAccess;
   status: "active" | "invited";
+  /** Omitted while the member is still invited. */
+  lastActiveAt?: string;
 }
 
 export interface Notification {

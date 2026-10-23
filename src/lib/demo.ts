@@ -9,6 +9,8 @@ export const DEMO_LATENCY_MS = 450;
 /** Demo accounts the role screen and the top-bar switcher bind to. */
 export const DEMO_HOMEOWNER_ID = "usr_ananya";
 export const DEMO_DESIGNER_ID = "usr_rohan";
+export const DEMO_FAMILY_ID = "usr_meera";
+export const DEMO_INDIRANAGAR_ID = "usr_karthik";
 
 export function delay(ms = DEMO_LATENCY_MS): Promise<void> {
   return new Promise((resolve) => {

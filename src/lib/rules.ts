@@ -5,7 +5,10 @@ import { createId, DEMO_NOW, uniqueId } from "@/lib/demo";
 import { formatINRCompact } from "@/lib/format";
 import type {
   ChangeRequest,
+  Comment,
   Health,
+  InspirationItem,
+  MaterialSpec,
   MemberAccess,
   Notification,
   Payment,
@@ -34,6 +37,7 @@ export type Capability =
   | "raise_change_request"
   | "decide_change_request"
   | "edit_room"
+  | "edit_project"
   | "invite_member";
 
 export interface PermissionContext {
@@ -234,10 +238,12 @@ export function can(actor: Actor, capability: Capability, context?: PermissionCo
     case "post_update":
     case "record_payment":
     case "edit_room":
+    case "edit_project":
       if (isDesigner) return allow();
       if (capability === "post_update") return deny("Only the designer can post updates");
       if (capability === "record_payment") return deny("Only the designer can record payments");
       if (capability === "edit_room") return deny("Only the designer can edit room specs");
+      if (capability === "edit_project") return deny("Only the designer can edit project settings");
       return deny("Only a designer can create a project");
     case "decide_update":
     case "decide_payment":
@@ -802,6 +808,7 @@ export function approveChangeRequest(input: {
   request: ChangeRequest;
   actor: Actor;
   now?: string;
+  notificationId?: string;
 }): RuleResult<{ request: ChangeRequest; notification: Notification }> {
   const permission = can(input.actor, "decide_change_request", {
     raisedByRole: input.request.raisedByRole,
@@ -820,7 +827,7 @@ export function approveChangeRequest(input: {
         appliedToBaseline: false,
       },
       notification: {
-        id: createId("nt"),
+        id: input.notificationId ?? createId("nt"),
         userId: input.request.raisedById,
         projectId: input.request.projectId,
         type: "change_request",
@@ -828,7 +835,7 @@ export function approveChangeRequest(input: {
         body: input.request.title,
         createdAt: at,
         read: false,
-        href: `/projects/${input.request.projectId}/changes`,
+        href: `/projects/${input.request.projectId}/changes?request=${input.request.id}`,
       },
     },
   };
@@ -839,6 +846,7 @@ export function rejectChangeRequest(input: {
   actor: Actor;
   comment?: string;
   now?: string;
+  notificationId?: string;
 }): RuleResult<{ request: ChangeRequest; notification: Notification }> {
   const permission = can(input.actor, "decide_change_request", {
     raisedByRole: input.request.raisedByRole,
@@ -857,7 +865,7 @@ export function rejectChangeRequest(input: {
         decisionComment: input.comment?.trim() || undefined,
       },
       notification: {
-        id: createId("nt"),
+        id: input.notificationId ?? createId("nt"),
         userId: input.request.raisedById,
         projectId: input.request.projectId,
         type: "change_request",
@@ -865,7 +873,7 @@ export function rejectChangeRequest(input: {
         body: input.request.title,
         createdAt: at,
         read: false,
-        href: `/projects/${input.request.projectId}/changes`,
+        href: `/projects/${input.request.projectId}/changes?request=${input.request.id}`,
       },
     },
   };
@@ -1074,5 +1082,478 @@ export function impactPreview(project: Project, changeRequests: ChangeRequest[],
     costAfter: before + request.costImpact,
     endBefore: format(endBefore, "yyyy-MM-dd"),
     endAfter: format(endAfter, "yyyy-MM-dd"),
+  };
+}
+
+export interface ChangeRequestDraft {
+  title: string;
+  description: string;
+  roomId?: string;
+  costImpact: number;
+  daysImpact: number;
+}
+
+export function raiseChangeRequest(input: {
+  actor: Actor;
+  project: Project;
+  draft: ChangeRequestDraft;
+  now?: string;
+  requestId?: string;
+  notificationId?: string;
+}): RuleResult<{ request: ChangeRequest; notification: Notification }> {
+  const permission = can(input.actor, "raise_change_request");
+  if (!permission.allowed) return fail(permission.reason);
+  const title = input.draft.title.trim();
+  const description = input.draft.description.trim();
+  if (!title) return fail("Enter a title");
+  if (!description) return fail("Enter a description");
+  if (!Number.isFinite(input.draft.costImpact) || !Number.isFinite(input.draft.daysImpact)) {
+    return fail("Enter a cost and timeline impact");
+  }
+  if (!Number.isInteger(input.draft.daysImpact)) return fail("Timeline impact has to be a whole number of days");
+  if (input.draft.costImpact === 0 && input.draft.daysImpact === 0) return fail("Add a cost or timeline impact");
+  const at = input.now ?? DEMO_NOW.toISOString();
+  const id = input.requestId ?? createId("cr");
+  const counterpartyId = input.actor.role === "designer" ? input.project.homeownerId : input.project.designerId;
+  return {
+    ok: true,
+    value: {
+      request: {
+        id,
+        projectId: input.project.id,
+        roomId: input.draft.roomId || undefined,
+        title,
+        description,
+        raisedById: input.actor.id,
+        raisedByRole: input.actor.role,
+        costImpact: input.draft.costImpact,
+        daysImpact: input.draft.daysImpact,
+        status: "pending",
+        createdAt: at,
+      },
+      notification: {
+        id: input.notificationId ?? createId("nt"),
+        userId: counterpartyId,
+        projectId: input.project.id,
+        type: "change_request",
+        title: `Change request: ${title}`,
+        body: input.draft.description.trim(),
+        createdAt: at,
+        read: false,
+        href: `/projects/${input.project.id}/changes?request=${id}`,
+      },
+    },
+  };
+}
+
+export function addRoom(input: {
+  actor: Actor;
+  projectId: string;
+  draft: ProjectRoomDraft;
+  roomId?: string;
+}): RuleResult<{ room: Room }> {
+  const permission = can(input.actor, "edit_room");
+  if (!permission.allowed) return fail(permission.reason);
+  const name = input.draft.name.trim();
+  if (name.length < 2) return fail("Enter a room name");
+  if (!isRoomType(input.draft.type)) return fail("Choose a room type");
+  if (!Number.isFinite(input.draft.areaSqft) || input.draft.areaSqft <= 0) return fail("Enter the area");
+  if (!Number.isFinite(input.draft.budgetAllocation) || input.draft.budgetAllocation < 0) {
+    return fail("Enter a budget allocation");
+  }
+  return {
+    ok: true,
+    value: {
+      room: {
+        id: input.roomId ?? createId("rm"),
+        projectId: input.projectId,
+        name,
+        type: input.draft.type,
+        areaSqft: input.draft.areaSqft,
+        progress: 0,
+        status: "not_started",
+        activeTask: "Not started",
+        budgetAllocation: input.draft.budgetAllocation,
+        beforePhotos: [],
+        inspiration: [],
+        specs: [],
+      },
+    },
+  };
+}
+
+const ROOM_TYPE_VALUES = ["living", "kitchen", "bedroom", "bathroom", "balcony", "dining", "study"] as const;
+
+export function isRoomType(value: string): value is Room["type"] {
+  return (ROOM_TYPE_VALUES as readonly string[]).includes(value);
+}
+
+export function updateActiveTask(input: { actor: Actor; room: Room; activeTask: string }): RuleResult<{ room: Room }> {
+  const permission = can(input.actor, "edit_room");
+  if (!permission.allowed) return fail(permission.reason);
+  const activeTask = input.activeTask.trim();
+  if (!activeTask) return fail("Enter the active task");
+  return { ok: true, value: { room: { ...input.room, activeTask } } };
+}
+
+export interface SpecDraft {
+  category: MaterialSpec["category"];
+  item: string;
+  brand?: string;
+  finish?: string;
+  quantity: number;
+  unit: string;
+  estCost: number;
+}
+
+const SPEC_CATEGORIES = ["Flooring", "Walls", "Ceiling", "Furniture", "Lighting", "Fixtures", "Hardware"] as const;
+
+export function isSpecCategory(value: string): value is MaterialSpec["category"] {
+  return (SPEC_CATEGORIES as readonly string[]).includes(value);
+}
+
+export const SPEC_STATUSES = ["proposed", "approved", "ordered", "installed"] as const;
+
+function specFromDraft(draft: SpecDraft, id: string, status: MaterialSpec["status"]): RuleResult<MaterialSpec> {
+  const item = draft.item.trim();
+  const unit = draft.unit.trim();
+  if (!isSpecCategory(draft.category)) return fail("Choose a category");
+  if (!item) return fail("Enter the item");
+  if (!unit) return fail("Enter a unit");
+  if (!Number.isFinite(draft.quantity) || draft.quantity <= 0) return fail("Enter a quantity");
+  if (!Number.isFinite(draft.estCost) || draft.estCost < 0) return fail("Enter an estimated cost");
+  return {
+    ok: true,
+    value: {
+      id,
+      category: draft.category,
+      item,
+      brand: draft.brand?.trim() || undefined,
+      finish: draft.finish?.trim() || undefined,
+      quantity: draft.quantity,
+      unit,
+      estCost: draft.estCost,
+      status,
+    },
+  };
+}
+
+export function addSpec(input: { actor: Actor; room: Room; draft: SpecDraft; specId?: string }): RuleResult<{ room: Room }> {
+  const permission = can(input.actor, "edit_room");
+  if (!permission.allowed) return fail(permission.reason);
+  const spec = specFromDraft(input.draft, input.specId ?? createId("spec"), "proposed");
+  if (!spec.ok) return spec;
+  return { ok: true, value: { room: { ...input.room, specs: [...input.room.specs, spec.value] } } };
+}
+
+export function updateSpec(input: { actor: Actor; room: Room; specId: string; draft: SpecDraft }): RuleResult<{ room: Room }> {
+  const permission = can(input.actor, "edit_room");
+  if (!permission.allowed) return fail(permission.reason);
+  const current = input.room.specs.find((item) => item.id === input.specId);
+  if (!current) return fail("Spec not found");
+  const spec = specFromDraft(input.draft, current.id, current.status);
+  if (!spec.ok) return spec;
+  return {
+    ok: true,
+    value: { room: { ...input.room, specs: input.room.specs.map((item) => (item.id === current.id ? spec.value : item)) } },
+  };
+}
+
+export function deleteSpec(input: { actor: Actor; room: Room; specId: string }): RuleResult<{ room: Room }> {
+  const permission = can(input.actor, "edit_room");
+  if (!permission.allowed) return fail(permission.reason);
+  if (!input.room.specs.some((item) => item.id === input.specId)) return fail("Spec not found");
+  return { ok: true, value: { room: { ...input.room, specs: input.room.specs.filter((item) => item.id !== input.specId) } } };
+}
+
+export function setSpecStatus(input: {
+  actor: Actor;
+  room: Room;
+  specId: string;
+  status: MaterialSpec["status"];
+}): RuleResult<{ room: Room }> {
+  const current = input.room.specs.find((item) => item.id === input.specId);
+  if (!current) return fail("Spec not found");
+  if (!(SPEC_STATUSES as readonly string[]).includes(input.status)) return fail("Choose a status");
+  if (current.status === input.status) {
+    return { ok: true, value: { room: input.room } };
+  }
+  const designer = can(input.actor, "edit_room");
+  const approver = can(input.actor, "decide_update");
+  const homeownerApproval = approver.allowed && current.status === "proposed" && input.status === "approved";
+  if (!designer.allowed && !homeownerApproval) {
+    if (!approver.allowed) return fail(approver.reason);
+    return fail("You can approve a proposed spec");
+  }
+  return {
+    ok: true,
+    value: {
+      room: {
+        ...input.room,
+        specs: input.room.specs.map((item) => (item.id === current.id ? { ...item, status: input.status } : item)),
+      },
+    },
+  };
+}
+
+export function addBeforePhoto(input: { actor: Actor; room: Room; url: string }): RuleResult<{ room: Room }> {
+  const permission = can(input.actor, "edit_room");
+  if (!permission.allowed) return fail(permission.reason);
+  if (!input.url) return fail("Add a photo");
+  return { ok: true, value: { room: { ...input.room, beforePhotos: [...input.room.beforePhotos, input.url] } } };
+}
+
+export function addInspiration(input: {
+  actor: Actor;
+  room: Room;
+  imageUrl: string;
+  note: string;
+  tag: string;
+  itemId?: string;
+}): RuleResult<{ room: Room }> {
+  const permission = can(input.actor, "edit_room");
+  if (!permission.allowed) return fail(permission.reason);
+  const tag = input.tag.trim();
+  if (!input.imageUrl) return fail("Add an image");
+  if (!tag) return fail("Add a tag");
+  const item: InspirationItem = {
+    id: input.itemId ?? createId("ins"),
+    imageUrl: input.imageUrl,
+    note: input.note.trim(),
+    tag,
+    comments: [],
+  };
+  return { ok: true, value: { room: { ...input.room, inspiration: [...input.room.inspiration, item] } } };
+}
+
+export function removeInspiration(input: { actor: Actor; room: Room; itemId: string }): RuleResult<{ room: Room }> {
+  const permission = can(input.actor, "edit_room");
+  if (!permission.allowed) return fail(permission.reason);
+  if (!input.room.inspiration.some((item) => item.id === input.itemId)) return fail("Inspiration item not found");
+  return {
+    ok: true,
+    value: { room: { ...input.room, inspiration: input.room.inspiration.filter((item) => item.id !== input.itemId) } },
+  };
+}
+
+export function commentOnInspiration(input: {
+  room: Room;
+  actor: Actor;
+  itemId: string;
+  text: string;
+  now?: string;
+  commentId?: string;
+}): RuleResult<{ room: Room }> {
+  const text = input.text.trim();
+  if (!text) return fail("Write a comment");
+  const item = input.room.inspiration.find((entry) => entry.id === input.itemId);
+  if (!item) return fail("Inspiration item not found");
+  const comment: Comment = {
+    id: input.commentId ?? createId("cmt"),
+    authorId: input.actor.id,
+    text,
+    createdAt: input.now ?? DEMO_NOW.toISOString(),
+  };
+  return {
+    ok: true,
+    value: {
+      room: {
+        ...input.room,
+        inspiration: input.room.inspiration.map((entry) =>
+          entry.id === item.id ? { ...entry, comments: [...entry.comments, comment] } : entry,
+        ),
+      },
+    },
+  };
+}
+
+export function normalizeContact(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.includes("@")) return trimmed.toLowerCase();
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length >= 10) return normalizePhone(trimmed);
+  return trimmed.toLowerCase();
+}
+
+function contactAccepted(value: string): boolean {
+  const normalized = normalizeContact(value);
+  if (normalized.includes("@")) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+  return phoneSchema.safeParse(normalized).success;
+}
+
+export interface InviteDraft {
+  name: string;
+  contact: string;
+  role: "family" | "site_supervisor";
+  access: "view" | "approve";
+}
+
+export function familyLogin(member: TeamMember, users: User[]): User | undefined {
+  if (member.role !== "family") return undefined;
+  const contact = normalizeContact(member.contact);
+  return users.find((user) => user.accountKind === "family" && normalizeContact(user.phone) === contact);
+}
+
+export function inviteMember(input: {
+  actor: Actor;
+  project: Project;
+  members: TeamMember[];
+  draft: InviteDraft;
+  now?: string;
+  memberId?: string;
+  notificationId?: string;
+}): RuleResult<{ member: TeamMember; notification: Notification }> {
+  const permission = can(input.actor, "invite_member");
+  if (!permission.allowed) return fail(permission.reason);
+  const name = input.draft.name.trim();
+  if (name.length < 2) return fail("Enter a name");
+  if (!contactAccepted(input.draft.contact)) return fail("Enter a phone number or email");
+  if (input.draft.role !== "family" && input.draft.role !== "site_supervisor") return fail("Choose a role");
+  if (input.draft.access !== "view" && input.draft.access !== "approve") return fail("Choose an access level");
+  const contact = normalizeContact(input.draft.contact);
+  const duplicate = input.members.some(
+    (member) => member.projectId === input.project.id && normalizeContact(member.contact) === contact,
+  );
+  if (duplicate) return fail("That contact is already on the project");
+  const at = input.now ?? DEMO_NOW.toISOString();
+  const counterpartyId = input.actor.role === "designer" ? input.project.homeownerId : input.project.designerId;
+  const member: TeamMember = {
+    id: input.memberId ?? createId("tm"),
+    projectId: input.project.id,
+    name,
+    contact,
+    role: input.draft.role,
+    access: input.draft.access,
+    status: "invited",
+  };
+  return {
+    ok: true,
+    value: {
+      member,
+      notification: {
+        id: input.notificationId ?? createId("nt"),
+        userId: counterpartyId,
+        projectId: input.project.id,
+        type: "invite",
+        title: `${name} was invited`,
+        body: input.draft.access === "approve" ? "Can approve" : "View only",
+        createdAt: at,
+        read: false,
+        href: `/projects/${input.project.id}/team`,
+      },
+    },
+  };
+}
+
+export function changeMemberAccess(input: {
+  actor: Actor;
+  member: TeamMember;
+  users: User[];
+  access: "view" | "approve";
+}): RuleResult<{ member: TeamMember; user?: User }> {
+  const permission = can(input.actor, "invite_member");
+  if (!permission.allowed) return fail(permission.reason);
+  if (input.member.role === "owner") return fail("Owner access can't be changed");
+  if (input.member.role === "designer") return fail("Designer access can't be changed");
+  if (input.access !== "view" && input.access !== "approve") return fail("Choose view or approve access");
+  const login = familyLogin(input.member, input.users);
+  return {
+    ok: true,
+    value: {
+      member: { ...input.member, access: input.access },
+      user: login ? { ...login, access: input.access } : undefined,
+    },
+  };
+}
+
+export function removeMember(input: { actor: Actor; member: TeamMember }): RuleResult<{ memberId: string }> {
+  const permission = can(input.actor, "invite_member");
+  if (!permission.allowed) return fail(permission.reason);
+  if (input.member.role === "owner") return fail("The owner can't be removed");
+  if (input.member.role === "designer") return fail("The designer can't be removed");
+  return { ok: true, value: { memberId: input.member.id } };
+}
+
+export function resendInvite(input: { actor: Actor; member: TeamMember }): RuleResult<{ member: TeamMember }> {
+  const permission = can(input.actor, "invite_member");
+  if (!permission.allowed) return fail(permission.reason);
+  if (input.member.status !== "invited") return fail("They're already on the project");
+  return { ok: true, value: { member: input.member } };
+}
+
+export function acceptInvite(input: { member: TeamMember; now?: string }): RuleResult<{ member: TeamMember }> {
+  if (input.member.status !== "invited") return fail("This invite is already active");
+  return {
+    ok: true,
+    value: { member: { ...input.member, status: "active", lastActiveAt: input.now ?? DEMO_NOW.toISOString() } },
+  };
+}
+
+export interface ProjectSettingsPatch {
+  name: string;
+  area: string;
+  city: string;
+  coverImage: string;
+  originalEndDate: string;
+  baseBudget: number;
+  status: Project["status"];
+}
+
+export function updateProjectSettings(input: {
+  actor: Actor;
+  project: Project;
+  patch: ProjectSettingsPatch;
+}): RuleResult<{ project: Project }> {
+  const permission = can(input.actor, "edit_project");
+  if (!permission.allowed) return fail(permission.reason);
+  const name = input.patch.name.trim();
+  const area = input.patch.area.trim();
+  const city = input.patch.city.trim();
+  if (name.length < 2) return fail("Enter a project name");
+  if (!area || !city) return fail("Enter the location");
+  if (!input.patch.coverImage) return fail("Choose a cover image");
+  if (!Number.isFinite(input.patch.baseBudget) || input.patch.baseBudget <= 0) return fail("Enter the base budget");
+  if (input.patch.status !== "active" && input.patch.status !== "on_hold" && input.patch.status !== "completed") {
+    return fail("Choose a project status");
+  }
+  const end = parseISO(input.patch.originalEndDate);
+  const start = parseISO(input.project.startDate);
+  if (!isValid(end) || !isAfter(end, start)) return fail("The end date has to be after the start");
+  return {
+    ok: true,
+    value: {
+      project: {
+        ...input.project,
+        name,
+        location: { area, city },
+        coverImage: input.patch.coverImage,
+        originalEndDate: input.patch.originalEndDate,
+        baseBudget: input.patch.baseBudget,
+        status: input.patch.status,
+      },
+    },
+  };
+}
+
+export function updateProfile(input: {
+  user: User;
+  members: TeamMember[];
+  name: string;
+  email: string;
+  avatarUrl?: string;
+}): RuleResult<{ user: User; members: TeamMember[] }> {
+  const name = input.name.trim();
+  const email = input.email.trim();
+  if (name.length < 2) return fail("Enter your name");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Enter a valid email");
+  const phone = normalizeContact(input.user.phone);
+  return {
+    ok: true,
+    value: {
+      user: { ...input.user, name, email: email || undefined, avatarUrl: input.avatarUrl || undefined },
+      members: input.members.map((member) =>
+        normalizeContact(member.contact) === phone ? { ...member, name } : member,
+      ),
+    },
   };
 }

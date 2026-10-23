@@ -29,9 +29,21 @@ export const useDb = create<DbState>()(
     {
       name: "cheqzo-db",
       partialize: (state) => ({
-        users: state.users,
-        projects: state.projects,
-        rooms: state.rooms,
+        users: state.users.map((user) => ({
+          ...user,
+          avatarUrl: user.avatarUrl?.startsWith("blob:") ? undefined : user.avatarUrl,
+        })),
+        projects: state.projects.map((project) => ({
+          ...project,
+          coverImage: project.coverImage.startsWith("blob:") ? "" : project.coverImage,
+        })),
+        rooms: state.rooms.map((room) => ({
+          ...room,
+          beforePhotos: room.beforePhotos.filter((url) => !url.startsWith("blob:")),
+          inspiration: room.inspiration
+            .filter((item) => !item.imageUrl.startsWith("blob:"))
+            .map((item) => ({ ...item })),
+        })),
         updates: state.updates.map((update) => ({
           ...update,
           photos: update.photos.filter((photo) => !photo.url.startsWith("blob:")),

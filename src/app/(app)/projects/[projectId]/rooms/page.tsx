@@ -1,6 +1,12 @@
-// TODO: Phase 7 — Rooms workspace (J9, J10).
-import { RoutePlaceholder } from "@/components/shell/RoutePlaceholder";
+import { Suspense } from "react";
+
+import { RoomsScreen } from "@/components/features/rooms";
+import { SplitSkeleton } from "@/components/shared/Skeletons";
 
 export default function Page() {
-  return <RoutePlaceholder title="Rooms" />;
+  return (
+    <Suspense fallback={<SplitSkeleton />}>
+      <RoomsScreen />
+    </Suspense>
+  );
 }

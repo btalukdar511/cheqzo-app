@@ -1,2 +1,1 @@
-// TODO: Phase 7 — Team feature components.
-export {};
+export { TeamScreen } from "@/components/features/team/team-screen";

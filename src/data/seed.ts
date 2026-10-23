@@ -52,7 +52,7 @@ function spec(
 }
 
 function inspiration(id: string, tag: string, note: string): InspirationItem {
-  return { id, imageUrl: picsum(id), note, tag };
+  return { id, imageUrl: picsum(id), note, tag, comments: [] };
 }
 
 function shot(id: string, caption: string, kind: SiteUpdate["photos"][number]["kind"]) {
@@ -707,8 +707,9 @@ function member(
   contact: string,
   role: TeamMember["role"],
   access: TeamMember["access"],
+  lastActiveAt: string,
 ): TeamMember {
-  return { id, projectId, name, contact, role, access, status: "active" };
+  return { id, projectId, name, contact, role, access, status: "active", lastActiveAt };
 }
 
 function note(
@@ -785,7 +786,10 @@ export function createSeedData(): Database {
       ...koramangalaRooms.map((room) => ({
         ...room,
         beforePhotos: [...room.beforePhotos],
-        inspiration: room.inspiration.map((item) => ({ ...item })),
+        inspiration: room.inspiration.map((item) => ({
+          ...item,
+          comments: item.comments.map((comment) => ({ ...comment })),
+        })),
         specs: room.specs.map((item) => ({ ...item })),
       })),
       ...whitefieldDrafts.map((draft) => buildRoom(IDS.whitefield, draft)),
@@ -815,26 +819,26 @@ export function createSeedData(): Database {
       ...request,
     })),
     teamMembers: [
-      member("tm_kora_ananya", IDS.koramangala, "Ananya Rao", "9845011101", "owner", "full"),
-      member("tm_kora_rohan", IDS.koramangala, "Rohan Mehta", "9845022202", "designer", "full"),
-      member("tm_kora_meera", IDS.koramangala, "Meera Rao", "9845044404", "family", "view"),
-      member("tm_kora_suresh", IDS.koramangala, "Suresh Kumar", "9845055505", "site_supervisor", "view"),
-      member("tm_wf_ananya", IDS.whitefield, "Ananya Rao", "9845011101", "owner", "full"),
-      member("tm_wf_rohan", IDS.whitefield, "Rohan Mehta", "9845022202", "designer", "full"),
-      member("tm_wf_suresh", IDS.whitefield, "Suresh Kumar", "9845055505", "site_supervisor", "view"),
-      member("tm_ind_karthik", IDS.indiranagar, "Karthik Iyer", "9845033303", "owner", "full"),
-      member("tm_ind_rohan", IDS.indiranagar, "Rohan Mehta", "9845022202", "designer", "full"),
+      member("tm_kora_ananya", IDS.koramangala, "Ananya Rao", "9845011101", "owner", "full", "2026-10-21T18:00:00"),
+      member("tm_kora_rohan", IDS.koramangala, "Rohan Mehta", "9845022202", "designer", "full", "2026-10-22T09:30:00"),
+      member("tm_kora_meera", IDS.koramangala, "Meera Rao", "9845044404", "family", "view", "2026-10-19T14:00:00"),
+      member("tm_kora_suresh", IDS.koramangala, "Suresh Kumar", "9845055505", "site_supervisor", "view", "2026-10-22T08:10:00"),
+      member("tm_wf_ananya", IDS.whitefield, "Ananya Rao", "9845011101", "owner", "full", "2026-10-18T11:00:00"),
+      member("tm_wf_rohan", IDS.whitefield, "Rohan Mehta", "9845022202", "designer", "full", "2026-10-20T16:00:00"),
+      member("tm_wf_suresh", IDS.whitefield, "Suresh Kumar", "9845055505", "site_supervisor", "view", "2026-10-15T09:00:00"),
+      member("tm_ind_karthik", IDS.indiranagar, "Karthik Iyer", "9845033303", "owner", "full", "2026-10-20T12:20:00"),
+      member("tm_ind_rohan", IDS.indiranagar, "Rohan Mehta", "9845022202", "designer", "full", "2026-10-21T10:00:00"),
     ],
     notifications: [
-      note("nt_ananya_kitchen", IDS.ananya, IDS.koramangala, "update_pending", "Kitchen update awaiting your approval", "Base and wall cabinets installed", "2026-10-21T11:05:00", `/projects/${IDS.koramangala}/updates`),
-      note("nt_ananya_living", IDS.ananya, IDS.koramangala, "update_pending", "Living Room update awaiting your approval", "False ceiling frame complete", "2026-10-20T16:05:00", `/projects/${IDS.koramangala}/updates`),
+      note("nt_ananya_kitchen", IDS.ananya, IDS.koramangala, "update_pending", "Kitchen update awaiting your approval", "Base and wall cabinets installed", "2026-10-21T11:05:00", `/projects/${IDS.koramangala}/updates?update=upd_kora_kitchen_cabinets`),
+      note("nt_ananya_living", IDS.ananya, IDS.koramangala, "update_pending", "Living Room update awaiting your approval", "False ceiling frame complete", "2026-10-20T16:05:00", `/projects/${IDS.koramangala}/updates?update=upd_kora_living_frame`),
       note("nt_ananya_pay", IDS.ananya, IDS.koramangala, "payment_ack", "₹2.5L payment awaiting acknowledgement", "Carpentry · UPI · 20 Oct 2026", "2026-10-20T12:45:00", `/projects/${IDS.koramangala}/financials?payment=${IDS.payAwaiting}`),
-      note("nt_ananya_cr", IDS.ananya, IDS.koramangala, "change_request", "Change request: Cove-lit false ceiling", "+₹1,40,000 and +5 days", "2026-10-18T15:05:00", `/projects/${IDS.koramangala}/changes`),
+      note("nt_ananya_cr", IDS.ananya, IDS.koramangala, "change_request", "Change request: Cove-lit false ceiling", "+₹1,40,000 and +5 days", "2026-10-18T15:05:00", `/projects/${IDS.koramangala}/changes?request=${IDS.cove}`),
       note("nt_ananya_dispute", IDS.ananya, IDS.whitefield, "payment_ack", "You disputed a cash payment", "Not received by us", "2026-10-02T09:05:00", `/projects/${IDS.whitefield}/financials?payment=pay_wf_disputed`, true),
-      note("nt_rohan_kids", IDS.rohan, IDS.koramangala, "update_decided", "Changes requested on Kids Bedroom", "Please add a socket near the study desk", "2026-09-19T10:05:00", `/projects/${IDS.koramangala}/updates`),
+      note("nt_rohan_kids", IDS.rohan, IDS.koramangala, "update_decided", "Changes requested on Kids Bedroom", "Please add a socket near the study desk", "2026-09-19T10:05:00", `/projects/${IDS.koramangala}/updates?update=upd_kora_kids_conduit`),
       note("nt_rohan_dispute", IDS.rohan, IDS.whitefield, "payment_ack", "Whitefield payment disputed", "Not received by us", "2026-10-02T09:05:00", `/projects/${IDS.whitefield}/financials?payment=pay_wf_disputed`),
       note("nt_rohan_karthik", IDS.rohan, IDS.indiranagar, "payment_ack", "Karthik acknowledged ₹3L payment", "Material stage on Indiranagar Penthouse", "2026-10-18T12:10:00", `/projects/${IDS.indiranagar}/financials?payment=pay_ind_material`),
-      note("nt_rohan_cove", IDS.rohan, IDS.koramangala, "change_request", "Cove-lit ceiling is with Ananya", "Waiting on a decision", "2026-10-18T15:06:00", `/projects/${IDS.koramangala}/changes`, true),
+      note("nt_rohan_cove", IDS.rohan, IDS.koramangala, "change_request", "Cove-lit ceiling is with Ananya", "Waiting on a decision", "2026-10-18T15:06:00", `/projects/${IDS.koramangala}/changes?request=${IDS.cove}`, true),
       note("nt_rohan_meera", IDS.rohan, IDS.koramangala, "invite", "Meera joined Koramangala", "View-only access", "2026-07-05T10:00:00", `/projects/${IDS.koramangala}/team`, true),
     ],
   };

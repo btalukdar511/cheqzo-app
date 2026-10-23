@@ -1,6 +1,11 @@
-// TODO: Phase 7 — Team (J11).
-import { RoutePlaceholder } from "@/components/shell/RoutePlaceholder";
+import { TeamScreen } from "@/components/features/team";
+import { TableSkeleton } from "@/components/shared/Skeletons";
+import { Suspense } from "react";
 
 export default function Page() {
-  return <RoutePlaceholder title="Team" />;
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <TeamScreen />
+    </Suspense>
+  );
 }

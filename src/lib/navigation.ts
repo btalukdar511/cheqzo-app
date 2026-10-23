@@ -1,5 +1,5 @@
 import { formatINR } from "@/lib/format";
-import { paymentHref, recordPaymentHref } from "@/lib/project-view";
+import { changeRequestHref, paymentHref, raiseChangeHref, recordPaymentHref } from "@/lib/project-view";
 import { actorFromUser, can, projectsForUser } from "@/lib/rules";
 import type { ChangeRequest, Payment, Project, Room, TeamMember, User } from "@/types";
 
@@ -88,7 +88,7 @@ export function commandEntries(input: {
       group: "Change requests",
       label: request.title,
       hint: projectName(visible, request.projectId),
-      href: `/projects/${request.projectId}/changes`,
+      href: changeRequestHref(request.projectId, request.id),
     });
   }
 
@@ -117,7 +117,7 @@ export function commandEntries(input: {
       id: "action-raise-change",
       group: "Actions",
       label: "Raise change request",
-      href: `/projects/${targetId}/changes`,
+      href: raiseChangeHref(targetId),
     });
   }
   entries.push({ id: "action-settings", group: "Actions", label: "Settings", href: "/settings" });

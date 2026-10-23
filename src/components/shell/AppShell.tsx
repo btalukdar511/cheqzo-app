@@ -6,6 +6,7 @@ import { Suspense, type ReactNode } from "react";
 
 import { AuthGate } from "@/components/shell/AuthGate";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { InviteWatcher } from "@/components/shell/InviteWatcher";
 import { ShellUiProvider } from "@/components/shell/shell-ui";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
@@ -68,6 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <CommandPalette />
+        <InviteWatcher />
       </ShellUiProvider>
     </AuthGate>
   );

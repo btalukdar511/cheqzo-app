@@ -1,6 +1,11 @@
-// TODO: Phase 7 — Project settings (J13).
-import { RoutePlaceholder } from "@/components/shell/RoutePlaceholder";
+import { Suspense } from "react";
+
+import { ProjectSettingsScreen } from "@/components/features/settings";
 
 export default function Page() {
-  return <RoutePlaceholder title="Project settings" />;
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-secondary" />}>
+      <ProjectSettingsScreen />
+    </Suspense>
+  );
 }

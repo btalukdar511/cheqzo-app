@@ -80,6 +80,14 @@ export function recordPaymentHref(projectId: string): string {
   return `/projects/${projectId}/financials?record=1`;
 }
 
+export function changeRequestHref(projectId: string, requestId: string): string {
+  return `/projects/${projectId}/changes?request=${requestId}`;
+}
+
+export function raiseChangeHref(projectId: string): string {
+  return `/projects/${projectId}/changes?raise=1`;
+}
+
 export function percentLabel(value: number): string {
   return `${Math.round(value)}%`;
 }
@@ -182,7 +190,7 @@ export function recentActivity(input: {
     title: request.title,
     meta: CHANGE_STATUS_LABEL[request.status],
     at: request.createdAt,
-    href: `/projects/${input.projectId}/changes`,
+    href: changeRequestHref(input.projectId, request.id),
   }));
   return [...updates, ...payments, ...changes]
     .sort((left, right) => right.at.localeCompare(left.at))
@@ -243,7 +251,7 @@ export function overviewActions(input: {
     items.push({
       id: request.id,
       label: `Decide ${request.title}`,
-      href: `/projects/${projectId}/changes`,
+      href: changeRequestHref(projectId, request.id),
     });
   }
   return { badges, items };

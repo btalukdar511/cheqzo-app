@@ -87,4 +87,29 @@ Choices made where the build guide was silent, or where the toolchain required a
 - Stage, method, status, the open payment (`?payment=`), and record (`?record=1`) live in the query string. Search stays in the ledger. New payment notifications, command-palette payments, and overview actions open that payment.
 - A recorded or resubmitted payment uses the demo latency. The designer can edit a disputed payment before sending it back. View-only homeowners see Acknowledge and Dispute disabled.
 
+## Phase 6
+
+- Net cost and net days add up every approved request, including approvals already inside the base budget. Koramangala starts at +₹10,000 and +1 day. Next decision due is the date of the oldest pending request, or None.
+- Approve asks for confirmation and shows the impact preview. Reject takes an optional comment. Withdraw asks for confirmation.
+- Status, who raised it, the open request, and the raise dialog live in the query string (`status`, `by`, `request`, `raise`).
+- A cost increase is danger-colored. A saving is success-colored and uses a minus sign.
+- The counterparty is notified when a request is raised. The raiser is notified when it is approved or rejected. Those links open `?request=`.
+
+## Phase 7
+
+- Inspiration items keep a comment list. Seeded items start empty.
+- Team rows store `lastActiveAt`. Invited members omit it until the demo acceptance.
+- Room spend is the estimated cost of specs marked ordered or installed. The specs tab compares every spec with the allocation and warns when the total is higher.
+- Room activity lists that room's updates and change requests, oldest first.
+- The designer can set any spec status. A homeowner who can approve can only move a proposed spec to approved. Anyone who can open the project can comment on inspiration.
+- Family and site supervisors can be view or approve. Owner and designer rows stay full and cannot be removed or have their access changed.
+- Changing a family member's access updates the login with the same phone. Meera is the only family login.
+- An invite is stored immediately. Five seconds later, in the same browser session, it becomes active and shows a toast. Refreshing during those five seconds leaves it invited. Once active, it persists.
+- Duplicate invites compare a normalized phone or lowercased email on that project.
+- Notification preferences are visual only and reset when the page reloads. Profile saves name and email. Phone stays the account key. Avatar and cover uploads are session blob URLs and are dropped on persist, the same way update photos are.
+- Project status can be set back to active with Resume, so hold and complete are not a one-way trap.
+- Switching to a demo user who cannot see the open project returns to the dashboard.
+- Seeded notifications and command-palette results open the specific update, payment, or change request. The raise action opens `?raise=1`.
+- The notification popover and command palette already shipped with the shell. This phase finishes their deep links and the Meera switch.
+
 
