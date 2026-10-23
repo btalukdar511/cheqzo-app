@@ -121,5 +121,6 @@ Choices made where the build guide was silent, or where the toolchain required a
 - Disabled confirms, dispute without a reason, post-update with no rooms, table page edges, and team access items that are already selected explain themselves with a tooltip.
 - Data tables say "Nothing matches" when a search or column filter hides every row and the list itself is not empty.
 - The photo lightbox renders on `document.body`. The updates filter bar is sticky, so a fixed overlay inside the detail pane sat underneath it.
+- Deciding an update, payment, or change request marks every earlier notice for that same link as read. The new notice for the other person stays unread, so the bell drops items the sidebar badge has already cleared.
 
 

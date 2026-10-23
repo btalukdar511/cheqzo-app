@@ -9,6 +9,7 @@ import {
   approveChangeRequest,
   approveUpdate,
   can,
+  settleNotices,
   delayDays,
   estimatedCost,
   impactPreview,
@@ -158,6 +159,14 @@ describe("progress", () => {
     if (!approved.ok) throw new Error(approved.reason);
     expect(approved.value.room.progress).toBe(65);
     expect(approved.value.update.status).toBe("approved");
+  });
+
+  it("marks the earlier notice for that update as read", () => {
+    const data = createSeedData();
+    const href = `/projects/${IDS.koramangala}/updates?update=upd_kora_kitchen_cabinets`;
+    const settled = settleNotices(data.notifications, href);
+    expect(settled.find((item) => item.id === "nt_ananya_kitchen")?.read).toBe(true);
+    expect(settled.find((item) => item.id === "nt_ananya_living")?.read).toBe(false);
   });
 });
 

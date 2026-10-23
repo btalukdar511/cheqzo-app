@@ -322,6 +322,11 @@ function fail<T>(reason: string): RuleResult<T> {
   return { ok: false, reason };
 }
 
+/** Earlier notices for a link are done once that item is decided. The new notice is added separately. */
+export function settleNotices(notifications: Notification[], href: string): Notification[] {
+  return notifications.map((item) => (item.href === href && !item.read ? { ...item, read: true } : item));
+}
+
 export function approveUpdate(input: {
   update: SiteUpdate;
   room: Room;

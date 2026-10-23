@@ -24,6 +24,7 @@ import {
   rejectChangeRequest,
   rejectUpdate,
   removeInspiration,
+  settleNotices,
   removeMember,
   requestUpdateChanges,
   resendInvite,
@@ -61,6 +62,10 @@ import type {
 
 async function wait(): Promise<void> {
   if (useDb.getState().latencyEnabled) await delay();
+}
+
+function withSettledNotice(notifications: Notification[], created: Notification): Notification[] {
+  return [created, ...settleNotices(notifications, created.href)];
 }
 
 function database(): Database {
@@ -298,7 +303,7 @@ export const api = {
     useDb.setState({
       updates: state.updates.map((item) => (item.id === updateId ? result.value.update : item)),
       rooms: state.rooms.map((item) => (item.id === room.id ? result.value.room : item)),
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.update;
   },
@@ -312,7 +317,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       updates: state.updates.map((item) => (item.id === updateId ? result.value.update : item)),
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.update;
   },
@@ -326,7 +331,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       updates: state.updates.map((item) => (item.id === updateId ? result.value.update : item)),
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.update;
   },
@@ -352,7 +357,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       payments: [result.value.payment, ...state.payments],
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.payment;
   },
@@ -365,7 +370,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       payments: state.payments.map((item) => (item.id === paymentId ? result.value.payment : item)),
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.payment;
   },
@@ -378,7 +383,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       payments: state.payments.map((item) => (item.id === paymentId ? result.value.payment : item)),
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.payment;
   },
@@ -398,7 +403,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       payments: state.payments.map((item) => (item.id === paymentId ? result.value.payment : item)),
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.payment;
   },
@@ -420,7 +425,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       changeRequests: [result.value.request, ...state.changeRequests],
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.request;
   },
@@ -433,7 +438,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       changeRequests: state.changeRequests.map((item) => (item.id === requestId ? result.value.request : item)),
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.request;
   },
@@ -451,7 +456,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       changeRequests: state.changeRequests.map((item) => (item.id === requestId ? result.value.request : item)),
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.request;
   },
@@ -464,6 +469,10 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       changeRequests: state.changeRequests.map((item) => (item.id === requestId ? result.value.request : item)),
+      notifications: settleNotices(
+        state.notifications,
+        `/projects/${result.value.request.projectId}/changes?request=${result.value.request.id}`,
+      ),
     });
     return result.value.request;
   },
@@ -627,7 +636,7 @@ export const api = {
     if (!result.ok) throw new Error(result.reason);
     useDb.setState({
       teamMembers: [...state.teamMembers, result.value.member],
-      notifications: [result.value.notification, ...state.notifications],
+      notifications: withSettledNotice(state.notifications, result.value.notification),
     });
     return result.value.member;
   },
