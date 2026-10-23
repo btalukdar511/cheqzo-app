@@ -12,7 +12,7 @@ export default function ProjectLayout({ children }: { children: ReactNode }) {
   const projectId = params.projectId;
   const user = useCurrentUser();
   const db = useLiveDb();
-  if (!user) return null;
+  if (!user) return children;
 
   const known = db.projects.some((project) => project.id === projectId);
   if (!known || !canSeeProject(user, projectId, db.projects, db.teamMembers)) {

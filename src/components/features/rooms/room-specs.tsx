@@ -107,10 +107,10 @@ export function RoomSpecs({ room, userId, actor }: { room: Room; userId: string;
                   </td>
                   {designer.allowed ? (
                     <td className="py-2 pl-2 text-right whitespace-nowrap">
-                      <button type="button" className="text-xs font-medium text-primary" onClick={() => setEditing(spec)}>
+                      <button type="button" className="rounded-sm text-xs font-medium text-primary outline-none focus-visible:ring-3 focus-visible:ring-ring/50" onClick={() => setEditing(spec)}>
                         Edit
                       </button>
-                      <button type="button" className="ml-2 text-xs font-medium text-danger" onClick={() => setRemoving(spec)}>
+                      <button type="button" className="ml-2 rounded-sm text-xs font-medium text-danger outline-none focus-visible:ring-3 focus-visible:ring-ring/50" onClick={() => setRemoving(spec)}>
                         Delete
                       </button>
                     </td>

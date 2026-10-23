@@ -35,6 +35,9 @@ export function AuthGate({ area, children }: { area: AuthArea; children: ReactNo
     router.replace(destination);
   }, [allowed, phone, ready, router, userId]);
 
+  // The store hydrates on the client. Keep the page in the tree until then so the
+  // route can prerender; the redirect only replaces it once the session is known.
+  if (!ready) return children;
   if (!allowed) return <AuthSkeleton />;
   return children;
 }

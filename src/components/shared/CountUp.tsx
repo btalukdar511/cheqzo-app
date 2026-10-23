@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { animate, useReducedMotion } from "framer-motion";
 
+import { cn } from "@/lib/utils";
+
 interface CountUpProps {
   value: number;
   format?: (value: number) => string;
@@ -27,5 +29,5 @@ export function CountUp({ value, format = (next) => Math.round(next).toLocaleStr
   }, [value, reduced]);
 
   const shown = reduced ? value : display;
-  return <span className={className}>{format(shown)}</span>;
+  return <span className={cn("tabular-nums", className)}>{format(shown)}</span>;
 }

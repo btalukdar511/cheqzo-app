@@ -112,4 +112,14 @@ Choices made where the build guide was silent, or where the toolchain required a
 - Seeded notifications and command-palette results open the specific update, payment, or change request. The raise action opens `?raise=1`.
 - The notification popover and command palette already shipped with the shell. This phase finishes their deep links and the Meera switch.
 
+## Phase 8
+
+- Auth stays a client guard. Until the persisted session has hydrated, the guard renders the page instead of replacing it, so Next can prerender each segment. The redirect still runs once the session is known.
+- `?fail=1` is read in a sibling of the page, so a missing search param does not take the page out of the shell. Retry still clears the flag.
+- A project route renders its page until the signed-in user is known. Unknown or hidden projects still show the not-allowed screen.
+- `/dev/components` returns not-found unless `CHEQZO_DEV_COMPONENTS=1`.
+- Disabled confirms, dispute without a reason, post-update with no rooms, table page edges, and team access items that are already selected explain themselves with a tooltip.
+- Data tables say "Nothing matches" when a search or column filter hides every row and the list itself is not empty.
+- The photo lightbox renders on `document.body`. The updates filter bar is sticky, so a fixed overlay inside the detail pane sat underneath it.
+
 

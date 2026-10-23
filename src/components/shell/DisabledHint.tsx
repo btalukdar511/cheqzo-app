@@ -17,7 +17,7 @@ export function DisabledHint({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="inline-flex" tabIndex={0}>
+        <span className="inline-flex cursor-not-allowed rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50" tabIndex={0}>
           {children}
         </span>
       </TooltipTrigger>

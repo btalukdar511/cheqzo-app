@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { PaymentForm } from "@/components/features/financials/payment-form";
 import { valuesFromPayment, writeFromValues } from "@/components/features/financials/payment-schema";
 import { RoleGuard } from "@/components/shared/RoleGuard";
+import { DisabledHint } from "@/components/shell/DisabledHint";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/data/api";
@@ -117,9 +118,11 @@ export function PaymentActions({
             <Button type="button" variant="outline" onClick={() => setDisputing(false)} disabled={busy}>
               Cancel
             </Button>
-            <Button type="button" variant="destructive" onClick={() => void dispute()} disabled={busy || !trimmed}>
-              Dispute payment
-            </Button>
+            <DisabledHint disabled={busy || !trimmed} reason={trimmed ? "Saving the dispute" : "Add a reason first"}>
+              <Button type="button" variant="destructive" onClick={() => void dispute()} disabled={busy || !trimmed}>
+                Dispute payment
+              </Button>
+            </DisabledHint>
           </div>
         </div>
       ) : (

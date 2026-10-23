@@ -83,7 +83,7 @@ export function AccountScreen() {
                 aria-pressed={item.id === user.id}
                 onClick={() => switchTo(item.id)}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-left text-sm",
+                  "rounded-lg border px-3 py-2 text-left text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                   item.id === user.id ? "border-primary bg-primary/10 text-foreground" : "border-border text-foreground hover:bg-secondary",
                 )}
               >

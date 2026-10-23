@@ -113,7 +113,7 @@ export function LedgerFilter({
   return (
     <select
       aria-label={label}
-      className="h-8 rounded-lg border border-border bg-surface px-2 text-sm text-foreground"
+      className="h-8 rounded-lg border border-border bg-surface px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       value={value === "all" ? "" : value}
       onChange={(event) => onChange(event.target.value || "all")}
     >

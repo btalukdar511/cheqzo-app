@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { DisabledHint } from "@/components/shell/DisabledHint";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -68,9 +69,11 @@ export function ConfirmDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={confirm} disabled={blocked}>
-            {confirmLabel}
-          </Button>
+          <DisabledHint disabled={blocked} reason="Add a reason first">
+            <Button variant="destructive" onClick={confirm} disabled={blocked}>
+              {confirmLabel}
+            </Button>
+          </DisabledHint>
         </DialogFooter>
       </DialogContent>
     </Dialog>

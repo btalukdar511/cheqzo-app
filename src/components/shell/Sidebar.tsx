@@ -43,7 +43,7 @@ function NavItem({ href, label, icon: Icon, active, count = 0 }: NavItemProps) {
       <Icon className="size-4 shrink-0" />
       <span className="truncate">{label}</span>
       {count > 0 ? (
-        <span className="ml-auto rounded-full bg-primary px-1.5 text-[11px] leading-4 font-medium text-primary-foreground">
+        <span className="ml-auto rounded-full bg-primary px-1.5 text-[11px] leading-4 font-medium text-primary-foreground tabular-nums">
           {count}
         </span>
       ) : null}

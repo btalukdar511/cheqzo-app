@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
 
 import { SeedImage } from "@/components/shared/SeedImage";
@@ -32,9 +33,9 @@ export function Lightbox({ photos, index, onIndexChange, onClose }: LightboxProp
     return () => window.removeEventListener("keydown", onKey);
   }, [index, onClose, onIndexChange, photos.length]);
 
-  if (!photo) return null;
+  if (!photo || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-foreground/92 text-background" role="dialog" aria-modal="true" aria-label={photo.caption || "Photo"}>
       <div className="flex items-center justify-end p-4">
         <Button variant="ghost" size="icon" className="text-background hover:bg-background/10" onClick={onClose} aria-label="Close">
@@ -56,6 +57,7 @@ export function Lightbox({ photos, index, onIndexChange, onClose }: LightboxProp
           <ChevronRightIcon />
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

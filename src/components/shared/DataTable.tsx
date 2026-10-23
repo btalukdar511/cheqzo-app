@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-table/legacy";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, InboxIcon } from "lucide-react";
 
+import { DisabledHint } from "@/components/shell/DisabledHint";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -82,6 +83,7 @@ export function DataTable<TData extends RowData>({
   const rows = table.getRowModel().rows;
   const filtered = table.getFilteredRowModel().rows.map((row) => row.original);
   const total = filtered.length;
+  const narrowed = data.length > 0 && total === 0;
   const pageStart = total === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
   const pageEnd = Math.min(total, (pagination.pageIndex + 1) * pagination.pageSize);
   const idlePage = hideIdlePagination && !table.getCanPreviousPage() && !table.getCanNextPage();
@@ -145,7 +147,11 @@ export function DataTable<TData extends RowData>({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="p-6">
-                  <EmptyState icon={InboxIcon} title={emptyTitle} description={emptyDescription} />
+                  <EmptyState
+                    icon={InboxIcon}
+                    title={narrowed ? "Nothing matches" : emptyTitle}
+                    description={narrowed ? "Try a different search or filter." : emptyDescription}
+                  />
                 </td>
               </tr>
             ) : (
@@ -178,14 +184,18 @@ export function DataTable<TData extends RowData>({
       </div>
       {idlePage ? null : (
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{pageStart}–{pageEnd} of {total}</span>
+        <span className="tabular-nums">{pageStart}–{pageEnd} of {total}</span>
         <div className="flex gap-2">
-          <button type="button" className="rounded-lg border border-border px-2 py-1 disabled:opacity-40" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-            Previous
-          </button>
-          <button type="button" className="rounded-lg border border-border px-2 py-1 disabled:opacity-40" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-            Next
-          </button>
+          <DisabledHint disabled={!table.getCanPreviousPage()} reason="This is the first page">
+            <button type="button" className="rounded-lg border border-border px-2 py-1 disabled:opacity-40" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+              Previous
+            </button>
+          </DisabledHint>
+          <DisabledHint disabled={!table.getCanNextPage()} reason="This is the last page">
+            <button type="button" className="rounded-lg border border-border px-2 py-1 disabled:opacity-40" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+              Next
+            </button>
+          </DisabledHint>
         </div>
       </div>
       )}

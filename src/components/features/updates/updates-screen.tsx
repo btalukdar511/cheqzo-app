@@ -10,6 +10,7 @@ import { UpdateFeed } from "@/components/features/updates/update-feed";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SplitPane } from "@/components/shared/SplitPane";
 import { SplitSkeleton } from "@/components/shared/Skeletons";
+import { DisabledHint } from "@/components/shell/DisabledHint";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentUser, useLiveDb, useStoresReady } from "@/data/live";
@@ -143,10 +144,12 @@ export function UpdatesScreen() {
       <header className="flex items-center justify-between gap-4">
         <h1 className="font-display text-[28px] leading-9 font-semibold text-foreground">Updates</h1>
         {canPost ? (
-          <Button onClick={() => setPostOpen(true)} disabled={rooms.length === 0}>
-            <Plus />
-            Post update
-          </Button>
+          <DisabledHint disabled={rooms.length === 0} reason="Add a room before posting an update">
+            <Button onClick={() => setPostOpen(true)} disabled={rooms.length === 0}>
+              <Plus />
+              Post update
+            </Button>
+          </DisabledHint>
         ) : null}
       </header>
       <SplitPane

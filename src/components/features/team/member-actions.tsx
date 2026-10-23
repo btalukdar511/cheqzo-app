@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
+import { DisabledHint } from "@/components/shell/DisabledHint";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { RoleGuard } from "@/components/shared/RoleGuard";
 import { Button } from "@/components/ui/button";
@@ -63,14 +64,10 @@ export function MemberActions({ member, userId, actor }: { member: TeamMember; u
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <RoleGuard allowed={invite.allowed && !locked} reason={invite.allowed ? accessReason : invite.reason}>
-            <DropdownMenuItem disabled={member.access === "view"} onSelect={() => void setAccess("view")}>
-              View only
-            </DropdownMenuItem>
+            <AccessItem already={member.access === "view"} label="View only" reason="Already view only" onSelect={() => void setAccess("view")} />
           </RoleGuard>
           <RoleGuard allowed={invite.allowed && !locked} reason={invite.allowed ? accessReason : invite.reason}>
-            <DropdownMenuItem disabled={member.access === "approve"} onSelect={() => void setAccess("approve")}>
-              Can approve
-            </DropdownMenuItem>
+            <AccessItem already={member.access === "approve"} label="Can approve" reason="Already can approve" onSelect={() => void setAccess("approve")} />
           </RoleGuard>
           <RoleGuard allowed={invite.allowed && member.status === "invited"} reason={invite.allowed ? "They're already on the project" : invite.reason}>
             <DropdownMenuItem onSelect={() => void resend()}>Resend invite</DropdownMenuItem>
@@ -89,5 +86,31 @@ export function MemberActions({ member, userId, actor }: { member: TeamMember; u
         onConfirm={() => void remove()}
       />
     </>
+  );
+}
+
+function AccessItem({
+  already,
+  label,
+  reason,
+  onSelect,
+  disabled = false,
+}: {
+  already: boolean;
+  label: string;
+  reason: string;
+  onSelect: () => void;
+  disabled?: boolean;
+}) {
+  const item = (
+    <DropdownMenuItem disabled={disabled || already} onSelect={onSelect}>
+      {label}
+    </DropdownMenuItem>
+  );
+  if (disabled || !already) return item;
+  return (
+    <DisabledHint disabled reason={reason}>
+      {item}
+    </DisabledHint>
   );
 }

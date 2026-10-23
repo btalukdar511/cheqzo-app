@@ -63,7 +63,7 @@ export function NotificationsPopover() {
         >
           <Bell />
           {unread.length > 0 ? (
-            <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none text-primary-foreground">
+            <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none text-primary-foreground tabular-nums">
               {unread.length}
             </span>
           ) : null}
@@ -73,7 +73,7 @@ export function NotificationsPopover() {
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-foreground">Notifications</p>
           {unread.length > 0 ? (
-            <button type="button" onClick={markAll} className="text-xs font-medium text-primary hover:underline">
+            <button type="button" onClick={markAll} className="rounded-sm text-xs font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50">
               Mark all read
             </button>
           ) : null}
